@@ -1,0 +1,16 @@
+# Données générées par le serveur de paiement (commandes, tickets, journaux)
+paiement/data/*
+!paiement/data/.htaccess
+!paiement/data/index.php
+!paiement/data/vouchers/
+paiement/data/vouchers/*
+!paiement/data/vouchers/.gitkeep
+*.rsc
+*.log
+.DS_Store
+
+# Fichiers sources de travail (gardés en local uniquement)
+login.original.html
+img1.jpeg
+img2.jpeg
+forfait.jpeg
