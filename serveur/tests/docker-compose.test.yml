@@ -1,0 +1,33 @@
+# Pile de test : base, application, worker et simulateur (IZI Spot + routeur), sans Caddy.
+# docker compose -f tests/docker-compose.test.yml -p gandaltest up -d --build
+services:
+  db:
+    image: postgres:16.4-bookworm
+    environment: { POSTGRES_DB: gandal, POSTGRES_USER: gandal, POSTGRES_PASSWORD: testpass, GRAFANA_DB_PASSWORD: grafanatest }
+    volumes:
+      - ../docker/postgres-init.sh:/docker-entrypoint-initdb.d/10-grafana-role.sh:ro
+  mock:
+    build: ..
+    command: ["php", "-S", "0.0.0.0:8080", "tests/mock.php"]
+    volumes: ["./:/var/www/app/tests:ro"]
+  app:
+    build: ..
+    env_file: test.env
+    ports: ["127.0.0.1:8088:80"]
+    depends_on: [db, mock]
+  worker:
+    build: ..
+    env_file: test.env
+    command: ["sleep", "infinity"]
+    depends_on: [db, mock]
+  grafana:
+    image: grafana/grafana-oss:11.2.2
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admintest
+      GRAFANA_DB_PASSWORD: grafanatest
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: ["127.0.0.1:3088:3000"]
+    depends_on: [db]

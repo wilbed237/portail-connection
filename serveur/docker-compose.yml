@@ -1,0 +1,69 @@
+# GANDAL : paiement, création des tickets, suivi des ventes et de la consommation.
+# Démarrage : cp .env.example .env  (puis remplir)  et  docker compose up -d --build
+
+services:
+  caddy:
+    image: caddy:2.8.4
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN}
+      ADMIN_ALLOWED_IPS: ${ADMIN_ALLOWED_IPS}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [app, grafana]
+
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    depends_on: [db]
+    # Pas de port publié : seul Caddy y accède.
+
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    command: ["php", "bin/worker.php"]
+    depends_on: [db]
+
+  db:
+    image: postgres:16.4-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: gandal
+      POSTGRES_USER: gandal
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init.sh:/docker-entrypoint-initdb.d/10-grafana-role.sh:ro
+
+  grafana:
+    image: grafana/grafana-oss:11.2.2
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: https://${DOMAIN}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
+      GF_SECURITY_COOKIE_SECURE: "true"
+      GF_SECURITY_DISABLE_GRAVATAR: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [db]
+
+volumes:
+  pgdata:
+  grafana_data:
+  caddy_data:
+  caddy_config:

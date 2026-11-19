@@ -7,8 +7,10 @@ Portail captif du réseau Wi-Fi **GANDAL** (Département du GI), pour hotspot Mi
 | Élément | Rôle |
 |---|---|
 | `login.html` | Page de connexion du hotspot : connexion, forfaits, publicité de l'Académie Cisco ENSPY, aide |
-| `logo.jpeg`, `img/` | Logo et affiches optimisées de l'académie |
-| `paiement/` | Serveur PHP de paiement Mobile Money (MTN MoMo, Orange Money) via NotchPay |
+| `logo.jpeg` | Logo GANDAL |
+| `img/` | Affiches optimisées de l'Académie Cisco ENSPY |
+| `img/logos/` | Logos des moyens de paiement et de contact (voir ci-dessous) |
+| `serveur/` | Paiement Mobile Money (IZI Spot), création des tickets sur le MikroTik au moment du paiement, suivi des ventes, comptabilité et consommation (PostgreSQL, espace admin, Grafana). Voir [`serveur/README.md`](serveur/README.md) |
 
 ## Forfaits
 
@@ -24,14 +26,28 @@ Portail captif du réseau Wi-Fi **GANDAL** (Département du GI), pour hotspot Mi
 | Illimité / 1 mois (40 Go) | 5 000 F | 2 Mb/s |
 
 Les forfaits sont définis à deux endroits qui doivent rester identiques :
-`PLANS` dans `login.html` (affichage) et `paiement/config.php` (prix facturé et limites MikroTik).
+`PLANS` dans `login.html` (affichage) et `serveur/src/config.php` (prix facturé, profils User Manager).
+
+## Logos
+
+| Fichier | Logo | Source | Utilisé dans la page |
+|---|---|---|---|
+| `img/logos/mtn.svg` | MTN (logo 2022, ovale noir sur fond jaune) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:MTN_2022_logo.svg) | Choix de l'opérateur, bas de page |
+| `img/logos/orange.svg` | Orange, logo principal (carré orange, mot « orange ») | [orange.cm](https://www.orange.cm/) (`master-logo.svg`) | Choix de l'opérateur, bas de page |
+| `img/logos/whatsapp.svg` | WhatsApp (icône verte et blanche) | [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:WhatsApp.svg) | Boutons « WhatsApp » |
+
+Les fichiers sont des SVG de 0,8 à 2,5 Ko, sans script ni lien externe : ils se chargent depuis le routeur, avant la connexion.
+Le logo MTN est posé sur le jaune MTN (`#FFCB05`) par la page ; le carré Orange garde ses angles droits.
+
+Ce sont des marques déposées de leurs propriétaires. Elles indiquent seulement les moyens de paiement acceptés :
+ne les modifiez pas et ne laissez pas croire à un partenariat avec MTN, Orange ou WhatsApp.
 
 ## Installation
 
-1. Copier `login.html`, `logo.jpeg` et `img/` dans le dossier `hotspot/` du routeur MikroTik.
-2. Mettre `paiement/` sur un hébergement PHP avec HTTPS, puis suivre [`paiement/README.md`](paiement/README.md) :
-   clé API NotchPay, profils MikroTik, génération des tickets, walled-garden.
+1. Copier `login.html`, `logo.jpeg` et le dossier `img/` (avec `img/logos/`) dans le dossier `hotspot/` du routeur MikroTik.
+2. Déployer `serveur/` sur un VPS avec Docker en suivant [`serveur/README.md`](serveur/README.md) :
+   tunnel WireGuard, User Manager sur le routeur, clés IZI Spot, comptes admin, walled-garden.
 3. Dans `login.html`, passer `PAYMENT_MODE` de `'demo'` à `'live'` et renseigner `PAYMENT_API_URL`.
 
-Ne jamais publier de clé API dans ce dépôt : `paiement/config.php` doit garder ses clés vides ici
-et n'être rempli que sur le serveur.
+Ne jamais publier de clé API dans ce dépôt : les secrets vont uniquement dans `serveur/.env` sur le serveur
+(fichier ignoré par Git, modèle dans `serveur/.env.example`).

@@ -1,0 +1,25 @@
+# Caddy obtient et renouvelle seul le certificat HTTPS (Let's Encrypt) pour {$DOMAIN}.
+{$DOMAIN} {
+	encode gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+		-Server
+	}
+
+	# Espace admin et Grafana : uniquement depuis les adresses autorisées (VPN WireGuard, bureau…)
+	@prive {
+		path /admin* /grafana*
+		not remote_ip {$ADMIN_ALLOWED_IPS}
+	}
+	respond @prive "Accès refusé" 403
+
+	handle /grafana* {
+		reverse_proxy grafana:3000
+	}
+	handle {
+		reverse_proxy app:80
+	}
+}

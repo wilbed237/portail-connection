@@ -1,0 +1,5 @@
+.env
+*.rsc
+tests/
+grafana/
+docker-compose*.yml

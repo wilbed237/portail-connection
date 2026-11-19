@@ -767,16 +767,16 @@
 
   // Paiement en ligne.
   //  'demo' : simule un paiement (pour tester la page, AUCUN argent n'est encaissé)
-  //  'live' : paiement réel via le serveur de paiement (dossier paiement/)
+  //  'live' : paiement réel via le serveur GANDAL (dossier serveur/)
   //  'off'  : masque le bouton « Payer en ligne », seul WhatsApp reste
   var PAYMENT_MODE = 'demo';
-  // Adresse du fichier api.php une fois le dossier paiement/ mis en ligne.
-  // La clé API NotchPay se met dans paiement/config.php, JAMAIS ici.
-  var PAYMENT_API_URL = 'https://VOTRE-DOMAINE.com/paiement/api.php';
+  // Adresse de api.php sur le serveur (voir serveur/README.md).
+  // Les clés IZI Spot se mettent dans le fichier .env du serveur, JAMAIS ici.
+  var PAYMENT_API_URL = 'https://VOTRE-DOMAINE.com/api.php';
 
-  // Forfaits (identiques à l'affiche). L'id doit exister dans paiement/config.php,
+  // Forfaits (identiques à l'affiche). L'id doit exister dans serveur/src/config.php,
   // et c'est le prix de config.php qui est réellement facturé.
-  // speed : débit maximal en Mb/s (doit correspondre à rate_limit dans paiement/config.php).
+  // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php).
   var PLANS = [
     { id:'1go-1j',     group:'1', name:'1 Go',              period:'1 jour',      price:100,  speed:5 },
     { id:'illim-1j',   group:'1', name:'Illimité',          period:'1 jour',      price:250,  speed:2 },
