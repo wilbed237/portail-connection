@@ -33,9 +33,9 @@ $r = "# GANDAL : configuration User Manager, forfaits et accès API (généré l
 $r .= "# Importer : /import gandal-mikrotik.rsc   puis supprimer le fichier du routeur.\n\n";
 
 $r .= "# ---- 1. User Manager et RADIUS (le hotspot authentifie via User Manager, sur le routeur lui-même)\n";
+$r .= "# Si un RADIUS local existe déjà (User Manager déjà utilisé), il est conservé tel quel avec son secret.\n";
 $r .= "/user-manager set enabled=yes\n";
-$r .= ":if ([:len [/user-manager router find where name=\"gandal-hotspot\"]] = 0) do={ /user-manager router add name=\"gandal-hotspot\" address=127.0.0.1 shared-secret=" . rs($radius) . " } else={ /user-manager router set [find where name=\"gandal-hotspot\"] address=127.0.0.1 shared-secret=" . rs($radius) . " }\n";
-$r .= ":if ([:len [/radius find where comment=\"gandal\"]] = 0) do={ /radius add service=hotspot address=127.0.0.1 secret=" . rs($radius) . " timeout=3s comment=\"gandal\" } else={ /radius set [find where comment=\"gandal\"] service=hotspot address=127.0.0.1 secret=" . rs($radius) . " }\n";
+$r .= ":if ([:len [/user-manager router find where address=127.0.0.1]] = 0 and [:len [/radius find where address=127.0.0.1]] = 0) do={ /user-manager router add name=\"gandal-hotspot\" address=127.0.0.1 shared-secret=" . rs($radius) . "; /radius add service=hotspot address=127.0.0.1 secret=" . rs($radius) . " timeout=3s comment=\"gandal\" } else={ :if ([:len [/user-manager router find where address=127.0.0.1]] = 0 or [:len [/radius find where address=127.0.0.1]] = 0) do={ :error \"RADIUS local incomplet : verifier /radius et /user-manager router\" } else={ :put \"RADIUS local existant conserve\" } }\n";
 $r .= "/ip hotspot profile set [find] use-radius=yes radius-accounting=yes radius-interim-update=5m\n\n";
 
 $r .= "# ---- 2. Un profil par forfait\n";
@@ -57,13 +57,16 @@ $r .= "/user group set [find where name=\"gandal-api\"] policy=read,write,api,re
 $r .= ":if ([:len [/user find where name=\"gandal-api\"]] = 0) do={ /user add name=\"gandal-api\" group=\"gandal-api\" password=" . rs($apiPass) . " address=$wg/32 } else={ /user set [find where name=\"gandal-api\"] group=\"gandal-api\" password=" . rs($apiPass) . " address=$wg/32 }\n";
 $r .= "# Certificat auto-signé pour l'API REST en HTTPS (le serveur épingle sa clé publique)\n";
 $r .= ":if ([:len [/certificate find where name=\"gandal-rest\"]] = 0) do={ /certificate add name=\"gandal-rest\" common-name=\"gandal-router\" days-valid=3650 key-usage=digital-signature,key-encipherment,tls-server; /certificate sign \"gandal-rest\"; :delay 10s }\n";
-$r .= "/ip service set www-ssl certificate=\"gandal-rest\" disabled=no address=$wg/32\n";
-$r .= "/ip service set api disabled=yes\n";
+$r .= "# Port 8443 : le 443 est pris par le service reverse-proxy de RouterOS 7.2x\n";
+$r .= "/ip service set www-ssl certificate=\"gandal-rest\" port=8443 disabled=no address=$wg/32\n";
+$r .= "/ip service set api,api-ssl disabled=yes\n";
+$r .= "# Pare-feu : accès à l'API depuis le serveur seulement, placé avant la règle de refus finale si elle existe\n";
+$r .= ":if ([:len [/ip firewall filter find where comment=\"GANDAL API\"]] = 0) do={ :if ([:len [/ip firewall filter find where comment=\"GANDAL refus\"]] > 0) do={ /ip firewall filter add chain=input in-interface=wg-gandal src-address=$wg protocol=tcp dst-port=8443 action=accept comment=\"GANDAL API\" place-before=[find where comment=\"GANDAL refus\"] } else={ /ip firewall filter add chain=input in-interface=wg-gandal src-address=$wg protocol=tcp dst-port=8443 action=accept comment=\"GANDAL API\" } }\n";
 
 file_put_contents($out, $r);
 chmod($out, 0600);
 
 fwrite(STDERR, "Script écrit : $out (contient des secrets, ne le publiez pas).\n\n");
 fwrite(STDERR, "À mettre dans le fichier .env du serveur :\n");
-fwrite(STDERR, "  ROUTER_URL=https://<adresse WireGuard du routeur>\n  ROUTER_USER=gandal-api\n  ROUTER_PASSWORD=$apiPass\n\n");
+fwrite(STDERR, "  ROUTER_URL=https://<adresse WireGuard du routeur>:8443\n  ROUTER_USER=gandal-api\n  ROUTER_PASSWORD=$apiPass\n\n");
 fwrite(STDERR, "Après l'import, relevez l'empreinte du certificat depuis le serveur (voir README, ROUTER_TLS_PIN).\n");

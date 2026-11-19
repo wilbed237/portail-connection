@@ -47,7 +47,7 @@ ne les modifiez pas et ne laissez pas croire à un partenariat avec MTN, Orange 
 1. Copier `login.html`, `logo.jpeg` et le dossier `img/` (avec `img/logos/`) dans le dossier `hotspot/` du routeur MikroTik.
 2. Déployer `serveur/` sur un VPS avec Docker en suivant [`serveur/README.md`](serveur/README.md) :
    tunnel WireGuard, User Manager sur le routeur, clés IZI Spot, comptes admin, walled-garden.
-3. Dans `login.html`, passer `PAYMENT_MODE` de `'demo'` à `'live'` et renseigner `PAYMENT_API_URL`.
+3. Dans `login.html`, passer `PAYMENT_MODE` de `'off'` à `'live'` (`'demo'` simule un paiement : jamais sur le vrai routeur) et renseigner `PAYMENT_API_URL`.
 
 Ne jamais publier de clé API dans ce dépôt : les secrets vont uniquement dans `serveur/.env` sur le serveur
 (fichier ignoré par Git, modèle dans `serveur/.env.example`).

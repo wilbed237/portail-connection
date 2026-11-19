@@ -75,7 +75,6 @@ Sur le routeur (terminal WinBox) :
 /interface wireguard print   ;# noter la clé publique (public-key) et la mettre dans wg0.conf du serveur
 /interface wireguard peers add interface=wg-gandal public-key="<clé publique du serveur>" endpoint-address=<IP du VPS> endpoint-port=51820 allowed-address=10.66.66.1/32 persistent-keepalive=25s
 /ip address add address=10.66.66.2/24 interface=wg-gandal
-/ip firewall filter add chain=input in-interface=wg-gandal src-address=10.66.66.1 protocol=tcp dst-port=443 action=accept comment="GANDAL API" place-before=0
 ```
 Vérifier depuis le serveur : `ping 10.66.66.2`.
 
@@ -91,11 +90,13 @@ Il configure :
 - User Manager comme serveur RADIUS du hotspot (`use-radius=yes`, comptabilité toutes les 5 min) ;
 - un profil `gd-<forfait>` par forfait : validité à partir de la première connexion, volume maximal, débit (5 Mb/s pour les forfaits en Go, 2 Mb/s pour les illimités) ;
 - un compte `gandal-api` limité aux droits `read, write, api, rest-api` et à l'adresse du serveur dans le tunnel ;
-- l'API REST en HTTPS avec un certificat auto-signé, joignable seulement depuis `10.66.66.1`, et l'API en clair désactivée.
+- l'API REST en HTTPS sur le port 8443 (le 443 est pris par le `reverse-proxy` de RouterOS) avec un certificat auto-signé,
+  joignable seulement depuis `10.66.66.1` (service et pare-feu), et l'API en clair désactivée ;
+- si User Manager servait déjà le hotspot (RADIUS sur `127.0.0.1`), sa configuration RADIUS est conservée.
 
 Relevez ensuite l'empreinte du certificat du routeur, depuis le serveur :
 ```bash
-openssl s_client -connect 10.66.66.2:443 </dev/null 2>/dev/null | openssl x509 -pubkey -noout \
+openssl s_client -connect 10.66.66.2:8443 </dev/null 2>/dev/null | openssl x509 -pubkey -noout \
   | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
 ```
 et mettez `ROUTER_TLS_PIN=sha256//<résultat>` dans `.env`. Le serveur refusera tout autre certificat.

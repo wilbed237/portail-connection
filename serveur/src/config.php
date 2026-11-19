@@ -35,7 +35,7 @@ function cfg(): array {
         'webhook_secret'  => env('WEBHOOK_SIGNING_SECRET'),
 
         // Routeur MikroTik (API REST de RouterOS 7, joignable par le tunnel WireGuard)
-        'router_url'      => rtrim(env('ROUTER_URL', 'https://10.66.66.2'), '/'),
+        'router_url'      => rtrim(env('ROUTER_URL', 'https://10.66.66.2:8443'), '/'),
         'router_user'     => env('ROUTER_USER', 'gandal-api'),
         'router_password' => env('ROUTER_PASSWORD'),
         // Empreinte de la clé publique du certificat du routeur : sha256//xxxxx (voir README)
