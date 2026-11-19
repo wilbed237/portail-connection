@@ -39,7 +39,8 @@ au bout de 5 minutes, et le client retrouve son ticket avec « Retrouver un tick
 
 ### Ce qu'il faut
 
-- Un VPS Linux (Ubuntu 24.04, 1 Go de RAM suffit) avec Docker, un nom de domaine qui pointe dessus.
+- Un VPS Linux sous virtualisation KVM (Ubuntu 24.04) : au minimum 1 vCPU, 2 Go de RAM, 25 Go de SSD,
+  une IPv4 publique et le port UDP 51820 ouvert pour WireGuard. Docker installé, un nom de domaine qui pointe dessus.
 - Le routeur MikroTik en **RouterOS 7.10 ou plus récent**.
 - Un compte marchand IZI Spot : clé publique, clé secrète et secret de signature des webhooks.
 
