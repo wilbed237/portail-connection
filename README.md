@@ -21,9 +21,9 @@ Portail captif du réseau Wi-Fi **GANDAL** (Département du GI), pour hotspot Mi
 | 8 Go / 5 jours | 500 F | 5 Mb/s |
 | 20 Go Haut Débit / 1 semaine | 1 000 F | 5 Mb/s |
 | Illimité / 1 jour | 250 F | 2 Mb/s |
-| Illimité / 1 semaine (25 Go) | 1 500 F | 2 Mb/s |
-| Illimité / 2 semaines (30 Go) | 2 500 F | 2 Mb/s |
-| Illimité / 1 mois (40 Go) | 5 000 F | 2 Mb/s |
+| Illimité / 1 semaine (25 Go) | 1 500 F | 5 Mb/s jusqu'à 25 Go, puis 2 Mb/s |
+| Illimité / 2 semaines (30 Go) | 2 500 F | 5 Mb/s jusqu'à 30 Go, puis 2 Mb/s |
+| Illimité / 1 mois (40 Go) | 5 000 F | 5 Mb/s jusqu'à 40 Go, puis 2 Mb/s |
 
 Les forfaits sont définis à deux endroits qui doivent rester identiques :
 `PLANS` dans `login.html` (affichage) et `serveur/src/config.php` (prix facturé, profils User Manager).

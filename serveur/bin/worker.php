@@ -3,7 +3,7 @@
  * Tâches de fond (conteneur « worker ») :
  *  - toutes les 15 s : commandes en attente (au cas où le client a fermé la page et que le webhook
  *    n'arrive pas) et tickets à créer pour les clients payés ;
- *  - toutes les 5 min : collecte sur le routeur, alertes, nettoyage.
+ *  - toutes les 5 min : collecte sur le routeur, débit réduit des illimités au-delà de leur volume, alertes, nettoyage.
  * Usage : php bin/worker.php           (boucle infinie)
  *         php bin/worker.php --once    (un seul passage, pour les tests)
  */
@@ -34,6 +34,7 @@ function tick(): void {
 
 function every5min(): void {
     try { collect(); } catch (Throwable $e) { logline('collecte : ' . $e->getMessage()); }
+    try { throttle_check(); } catch (Throwable $e) { logline('débit réduit : ' . $e->getMessage()); }
     try { run_alerts(); } catch (Throwable $e) { logline('alertes : ' . $e->getMessage()); }
     q("DELETE FROM rate_limits WHERE window_start < now() - interval '1 day'");
 }

@@ -47,6 +47,10 @@ if ($msg) { echo '<p role="status"><strong>' . h($msg) . '</strong></p>'; }
   <div class="kpi"><span>Forfait</span><b style="font-size:16px"><?= h($found['label']) ?></b></div>
   <div class="kpi"><span>État sur le routeur</span><b style="font-size:16px"><?= h($found['state'] ?? 'inconnu') ?></b></div>
   <div class="kpi"><span>Première connexion</span><b style="font-size:16px"><?= $found['first_login_at'] ? h(date('d/m/Y H:i', strtotime($found['first_login_at']))) : 'pas encore' ?></b></div>
+<?php $pl = plans()[$found['plan_id']] ?? null; if ($pl && plan_throttles($pl)): ?>
+  <div class="kpi"><span>Débit</span><b style="font-size:16px"><?= $found['throttled_at'] ? (int)$pl['rate_after'] . ' Mb/s' : (int)$pl['rate'] . ' Mb/s' ?></b>
+    <div class="note"><?= $found['throttled_at'] ? 'réduit depuis le ' . h(date('d/m/Y H:i', strtotime($found['throttled_at']))) . ' (' . (int)$pl['data_gb'] . ' Go atteints)' : 'plein débit jusqu’à ' . (int)$pl['data_gb'] . ' Go' ?></div></div>
+<?php endif; ?>
   <div class="kpi"><span>Expire le</span><b style="font-size:16px"><?= $found['expires_at'] ? h(date('d/m/Y H:i', strtotime($found['expires_at']))) : '-' ?></b></div>
   <div class="kpi"><span>Paiement</span><b style="font-size:16px"><?= h($found['reference'] ?? 'stock non vendu') ?></b>
     <?php if ($found['reference']): ?><div class="note"><?= fcfa($found['amount']) ?> · <?= h($isAdmin ? $found['phone'] : mask_phone($found['phone'])) ?></div><?php endif; ?></div>

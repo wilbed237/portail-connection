@@ -13,3 +13,6 @@ forfait.jpeg
 
 # Documentation marchand IZI Spot (gardée en local)
 INTEGRATION.md
+
+# Paquets RouterOS (téléchargés pour le routeur, trop lourds pour Git)
+*.npk

@@ -107,6 +107,22 @@ check "deltas, pas de double comptage (50 Mo par relevé et par ticket)" "$(sql 
 check "état du routeur enregistré" "$(sql "SELECT reachable FROM router_health ORDER BY ts DESC LIMIT 1")" "t"
 check "date d'expiration des tickets relevée" "$(sql "SELECT count(*) > 0 FROM tickets WHERE expires_at IS NOT NULL")" "t"
 
+echo "== Illimité avec volume : 5 Mb/s puis 2 Mb/s, sans coupure"
+ustate(){ $DC exec -T mock php -r 'echo file_get_contents("http://localhost:8080/ctl/state");' | python3 -c "import sys,json; d=json.load(sys.stdin); $1"; }
+U2=$(sql "SELECT username FROM tickets WHERE order_reference='$REF2'")
+U6=$(sql "SELECT username FROM tickets WHERE order_reference='$REF6'")
+check "illimité 1 semaine créé à 5 Mb/s" "$(ustate "print(d['users']['$U'].get('attributes',''))")" "Mikrotik-Rate-Limit:5M/5M"
+check "forfait en Go : débit du profil, pas d'attribut" "$(ustate "print(d['users']['$U2'].get('attributes','aucun'))")" "aucun"
+mock "/ctl/usage?user=$U&bytes=26843545600"   # 25 Go de plus
+worker
+check "25 Go dépassés → ticket marqué en débit réduit" "$(sql "SELECT throttled_at IS NOT NULL FROM tickets WHERE username='$U'")" "t"
+check "attribut passé à 2 Mb/s sur le routeur" "$(ustate "print(d['users']['$U'].get('attributes',''))")" "Mikrotik-Rate-Limit:2M/2M"
+check "session hotspot fermée pour appliquer le débit" "$(ustate "print('$U' in d['kicked'])")" "True"
+check "le ticket n'est pas supprimé du routeur" "$(ustate "print('$U' in d['users'])")" "True"
+check "illimité 1 mois sous son volume : toujours à 5 Mb/s" "$(sql "SELECT throttled_at IS NULL FROM tickets WHERE username='$U6'")" "t"
+T1=$(sql "SELECT throttled_at FROM tickets WHERE username='$U'"); worker
+check "pas de seconde bascule au relevé suivant" "$(sql "SELECT throttled_at FROM tickets WHERE username='$U'")" "$T1"
+
 echo "== Espace d'administration"
 OUT=$($DC exec -T worker php bin/admin.php creer compta1 comptable 2>&1)
 APW=$(echo "$OUT" | sed -n 's/^Mot de passe : //p'); SEC=$(echo "$OUT" | sed -n 's/^Clé 2FA : //p')

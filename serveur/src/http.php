@@ -89,9 +89,10 @@ function ros_error(array $r): string {
  * Renvoie '' en cas de succès, sinon le message d'erreur.
  */
 function um_create_ticket(string $username, string $password, string $planId): string {
-    $r = ros('PUT', '/user-manager/user', [
-        'name' => $username, 'password' => $password, 'group' => 'default', 'shared-users' => '1',
-    ]);
+    $user = ['name' => $username, 'password' => $password, 'group' => 'default', 'shared-users' => '1'];
+    $plan = plans()[$planId] ?? null;
+    if ($plan && plan_throttles($plan)) { $user['attributes'] = rate_attr($plan['rate']); }   // débit plein jusqu'au volume
+    $r = ros('PUT', '/user-manager/user', $user);
     if (!ros_ok($r)) {
         $exists = ros('GET', '/user-manager/user?name=' . rawurlencode($username));
         if (!ros_ok($exists) || empty($exists['data'])) { return ros_error($r); }

@@ -437,6 +437,11 @@
           <a href="#" data-goto="forfaits">Acheter un forfait</a>
         </div>
       </form>
+      <!-- Formulaire réellement envoyé au routeur en CHAP : le mot de passe part haché, jamais en clair -->
+      <form id="chapForm" action="$(link-login-only)" method="post" style="display:none">
+        <input type="hidden" name="username"><input type="hidden" name="password">
+        <input type="hidden" name="dst" value="$(link-orig)"><input type="hidden" name="popup" value="true">
+      </form>
 
       <div class="my-tickets" id="myTickets">
         <h3>Tickets achetés sur ce téléphone</h3>
@@ -609,11 +614,11 @@
         </details>
         <details>
           <summary>Quel débit vais-je avoir ?</summary>
-          <p>Les forfaits en Go (1 Go, 4 Go, 8 Go, 20 Go) ont un débit allant jusqu'à <b>5 Mb/s</b>. Les forfaits illimités ont un débit allant jusqu'à <b>2 Mb/s</b>. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
+          <p>Les forfaits en Go (1 Go, 4 Go, 8 Go, 20 Go) ont un débit allant jusqu'à <b>5 Mb/s</b>. Les illimités 1 semaine, 2 semaines et 1 mois sont à <b>5 Mb/s</b> jusqu'au volume inclus (25, 30 ou 40 Go), puis à <b>2 Mb/s</b> jusqu'à la fin de leur durée, sans coupure. L'illimité 1 jour est à <b>2 Mb/s</b>. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
         </details>
         <details>
           <summary>Quand mon forfait commence-t-il ?</summary>
-          <p>La durée démarre à votre première connexion. Le forfait prend fin à la fin de la durée ou quand le volume de données inclus est épuisé, selon ce qui arrive en premier. Les forfaits « illimités » comportent un volume inclus, indiqué sur chaque offre.</p>
+          <p>La durée démarre à votre première connexion. Un forfait en Go prend fin à la fin de la durée ou quand son volume est épuisé, selon ce qui arrive en premier. Un forfait illimité dure jusqu'à la fin de sa durée : une fois le volume inclus consommé, la connexion continue à 2 Mb/s (une reconnexion de quelques secondes a lieu au moment du changement).</p>
         </details>
         <details>
           <summary>Comment voir ce qu'il me reste ?</summary>
@@ -624,7 +629,7 @@
           <ul>
             <li>Désactivez les mises à jour automatiques et la sauvegarde des photos dans le cloud.</li>
             <li>Réduisez la qualité des vidéos (YouTube, TikTok, Facebook).</li>
-            <li>Pour les gros téléchargements, préférez un forfait en Go : le débit y est plus élevé (5 Mb/s).</li>
+            <li>Pour les gros téléchargements, préférez un forfait en Go ou un illimité d'une semaine ou plus : le débit y est de 5 Mb/s.</li>
           </ul>
         </details>
         <details id="conditions">
@@ -776,16 +781,17 @@
 
   // Forfaits (identiques à l'affiche). L'id doit exister dans serveur/src/config.php,
   // et c'est le prix de config.php qui est réellement facturé.
-  // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php).
+  // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php) ;
+  // les illimités à volume passent ensuite à « rate_after » (2 Mb/s), indiqué dans desc.
   var PLANS = [
     { id:'1go-1j',     group:'1', name:'1 Go',              period:'1 jour',      price:100,  speed:5 },
     { id:'illim-1j',   group:'1', name:'Illimité',          period:'1 jour',      price:250,  speed:2 },
     { id:'4go-3j',     group:'1', name:'4 Go',              period:'3 jours',     price:300,  speed:5 },
     { id:'8go-5j',     group:'1', name:'8 Go',              period:'5 jours',     price:500,  speed:5 },
     { id:'20go-7j',    group:'1', name:'20 Go Haut Débit',  period:'1 semaine',   price:1000, speed:5, tag:'Meilleur prix au Go' },
-    { id:'illim-7j',   group:'1', name:'Illimité',          period:'1 semaine',   price:1500, speed:2, desc:'25 Go inclus' },
-    { id:'illim-14j',  group:'1', name:'Illimité',          period:'2 semaines',  price:2500, speed:2, desc:'30 Go inclus' },
-    { id:'illim-30j',  group:'1', name:'Illimité',          period:'1 mois',      price:5000, speed:2, desc:'40 Go inclus' }
+    { id:'illim-7j',   group:'1', name:'Illimité',          period:'1 semaine',   price:1500, speed:5, desc:'5 Mb/s jusqu\'à 25 Go, puis 2 Mb/s' },
+    { id:'illim-14j',  group:'1', name:'Illimité',          period:'2 semaines',  price:2500, speed:5, desc:'5 Mb/s jusqu\'à 30 Go, puis 2 Mb/s' },
+    { id:'illim-30j',  group:'1', name:'Illimité',          period:'1 mois',      price:5000, speed:5, desc:'5 Mb/s jusqu\'à 40 Go, puis 2 Mb/s' }
   ];
   /* ============================================================== */
 
@@ -843,7 +849,7 @@
       var items = PLANS.filter(function(p){ return p.group === g.key; });
       if (!items.length) return;
       html += '<div class="group"><div class="group-head' + (g.special ? ' special' : '') + '"><span class="gh-icon">' + g.icon + '</span>' + g.title + '</div>' +
-        '<div class="speed-legend"><span><span class="speed fast">' + BOLT + '5 Mb/s</span>forfaits en Go</span><span><span class="speed">' + BOLT + '2 Mb/s</span>forfaits illimités</span></div><div class="tickets">';
+        '<div class="speed-legend"><span><span class="speed fast">' + BOLT + '5 Mb/s</span>forfaits en Go, illimités jusqu\'au volume inclus</span><span><span class="speed">' + BOLT + '2 Mb/s</span>illimité 1 jour, illimités au-delà du volume</span></div><div class="tickets">';
       items.forEach(function(p){
         html += '<div class="ticket' + (g.special ? ' special' : '') + '" data-id="' + p.id + '" role="option" tabindex="0" aria-selected="false">' +
           '<span class="ticket-radio"></span>' +
@@ -964,7 +970,7 @@
   byId('btnPay').addEventListener('click', function(){
     if (!selected) return;
     byId('payPlan').textContent = planLabel(selected);
-    byId('payPlanDesc').textContent = 'Débit ' + selected.speed + ' Mb/s' + (selected.desc ? ' · ' + selected.desc : '');
+    byId('payPlanDesc').textContent = selected.desc && selected.desc.indexOf('Mb/s') >= 0 ? selected.desc : 'Débit ' + selected.speed + ' Mb/s' + (selected.desc ? ' · ' + selected.desc : '');
     byId('payAmount').textContent = fmt(selected.price);
     byId('paySubmitAmount').textContent = fmt(selected.price);
     byId('demoFlag').style.display = PAYMENT_MODE === 'demo' ? 'block' : 'none';
@@ -1105,12 +1111,53 @@
   });
 
   // Connexion directe avec les identifiants reçus
+  // ---- Connexion en CHAP : le routeur fournit chap-id et chap-challenge, on envoie
+  // MD5(chap-id + mot de passe + challenge). Sans CHAP sur le routeur, envoi classique.
+  var CHAP_ID = '$(chap-id)', CHAP_CHALLENGE = '$(chap-challenge)';
+  function chapOn(){ return CHAP_ID !== '' && CHAP_ID.indexOf(UNSET) !== 0; }
+  function md5hex(s){
+    var K = [], S = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21], i, j;
+    for (i = 0; i < 64; i++) { K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) | 0; }
+    var n = s.length, nb = ((n + 8) >> 6) + 1, x = [];
+    for (i = 0; i < nb * 16; i++) { x[i] = 0; }
+    for (i = 0; i < n; i++) { x[i >> 2] |= (s.charCodeAt(i) & 255) << ((i % 4) * 8); }
+    x[n >> 2] |= 128 << ((n % 4) * 8);
+    x[nb * 16 - 2] = n * 8;
+    var h = [1732584193, -271733879, -1732584194, 271733878];
+    for (j = 0; j < x.length; j += 16) {
+      var a = h[0], b = h[1], c = h[2], d = h[3];
+      for (i = 0; i < 64; i++) {
+        var r = i >> 4, f, g;
+        if (r === 0) { f = (b & c) | (~b & d); g = i; }
+        else if (r === 1) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; }
+        else if (r === 2) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+        else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+        var sum = (a + f + K[i] + x[j + g]) | 0, sh = S[r * 4 + (i % 4)];
+        a = d; d = c; c = b;
+        b = (b + ((sum << sh) | (sum >>> (32 - sh)))) | 0;
+      }
+      h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+    }
+    var out = '';
+    for (i = 0; i < 16; i++) { out += ('0' + ((h[i >> 2] >>> ((i % 4) * 8)) & 255).toString(16)).slice(-2); }
+    return out;
+  }
+  function sendChap(){
+    var c = byId('chapForm');
+    c.querySelector('[name=username]').value = byId('username').value;
+    c.querySelector('[name=password]').value = md5hex(CHAP_ID + byId('password').value + CHAP_CHALLENGE);
+    c.submit();
+  }
+  byId('loginForm').addEventListener('submit', function(e){
+    if (chapOn()) { e.preventDefault(); sendChap(); }
+  });
+
   function loginWith(user, pass){
     byId('username').value = user; byId('password').value = pass;
     closeSheet(); activate('login');
     var f = byId('loginForm');
     if (f.getAttribute('action').indexOf(UNSET) === 0) { return; } // page ouverte hors du routeur : on remplit seulement
-    f.submit();
+    if (chapOn()) { sendChap(); } else { f.submit(); }
   }
   byId('okConnect').addEventListener('click', function(){ loginWith(byId('okUser').textContent, byId('okPass').textContent); });
 

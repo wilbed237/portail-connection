@@ -44,10 +44,17 @@ foreach (plans() as $id => $p) {
     $bytes = $p['data_gb'] > 0 ? $p['data_gb'] * 1073741824 : 0;
     $rate = $p['rate'] . 'M';
     $r .= "# {$p['label']}\n";
+    if (plan_throttles($p)) {
+        // Illimité avec volume inclus : pas de coupure au volume, et le débit vient de l'attribut
+        // Mikrotik-Rate-Limit posé sur chaque utilisateur ({$p['rate']}M, puis {$p['rate_after']}M posé par le serveur au-delà du volume).
+        $r .= "# Debit porte par l'utilisateur : {$p['rate']} Mb/s jusqu'a {$p['data_gb']} Go, puis {$p['rate_after']} Mb/s (bascule faite par le serveur)\n";
+        $bytes = 0; $rate = '0';
+    }
     $r .= ":if ([:len [/user-manager limitation find where name=" . rs($name) . "]] = 0) do={ /user-manager limitation add name=" . rs($name) . " }\n";
     $r .= "/user-manager limitation set [find where name=" . rs($name) . "] transfer-limit=$bytes rate-limit-rx=$rate rate-limit-tx=$rate\n";
-    $r .= ":if ([:len [/user-manager profile find where name=" . rs($name) . "]] = 0) do={ /user-manager profile add name=" . rs($name) . " }\n";
-    $r .= "/user-manager profile set [find where name=" . rs($name) . "] name-for-users=" . rs($p['label']) . " validity={$p['validity']} starts-when=first-auth price={$p['price']}\n";
+    // validity est obligatoire à la création (RouterOS 7.25 la demanderait sinon dans le terminal)
+    $prof = "name-for-users=" . rs($p['label']) . " validity={$p['validity']} starts-when=first-auth price={$p['price']}";
+    $r .= ":if ([:len [/user-manager profile find where name=" . rs($name) . "]] = 0) do={ /user-manager profile add name=" . rs($name) . " $prof } else={ /user-manager profile set [find where name=" . rs($name) . "] $prof }\n";
     $r .= ":if ([:len [/user-manager profile-limitation find where profile=" . rs($name) . " and limitation=" . rs($name) . "]] = 0) do={ /user-manager profile-limitation add profile=" . rs($name) . " limitation=" . rs($name) . " }\n\n";
 }
 
@@ -56,13 +63,17 @@ $r .= ":if ([:len [/user group find where name=\"gandal-api\"]] = 0) do={ /user 
 $r .= "/user group set [find where name=\"gandal-api\"] policy=read,write,api,rest-api\n";
 $r .= ":if ([:len [/user find where name=\"gandal-api\"]] = 0) do={ /user add name=\"gandal-api\" group=\"gandal-api\" password=" . rs($apiPass) . " address=$wg/32 } else={ /user set [find where name=\"gandal-api\"] group=\"gandal-api\" password=" . rs($apiPass) . " address=$wg/32 }\n";
 $r .= "# Certificat auto-signé pour l'API REST en HTTPS (le serveur épingle sa clé publique)\n";
-$r .= ":if ([:len [/certificate find where name=\"gandal-rest\"]] = 0) do={ /certificate add name=\"gandal-rest\" common-name=\"gandal-router\" days-valid=3650 key-usage=digital-signature,key-encipherment,tls-server; /certificate sign \"gandal-rest\"; :delay 10s }\n";
+$r .= "# Certificat auto-signe : key-cert-sign est requis pour qu'il se signe lui-meme (sinon \"CA not found\"). Un certificat non signe est recree.\n";
+$r .= ":if ([:len [/certificate find where name=\"gandal-rest\" and private-key]] = 0) do={ /certificate remove [find where name=\"gandal-rest\"]; /certificate add name=\"gandal-rest\" common-name=\"gandal-router\" days-valid=3650 key-usage=key-cert-sign,crl-sign,digital-signature,key-encipherment,tls-server; /certificate sign \"gandal-rest\"; :delay 10s }\n";
 $r .= "# Port 8443 : le 443 est pris par le service reverse-proxy de RouterOS 7.2x\n";
 $r .= "/ip service set www-ssl certificate=\"gandal-rest\" port=8443 disabled=no address=$wg/32\n";
 $r .= "/ip service set api,api-ssl disabled=yes\n";
 $r .= "# Pare-feu : accès à l'API depuis le serveur seulement, placé avant la règle de refus finale si elle existe\n";
 $r .= ":if ([:len [/ip firewall filter find where comment=\"GANDAL API\"]] = 0) do={ :if ([:len [/ip firewall filter find where comment=\"GANDAL refus\"]] > 0) do={ /ip firewall filter add chain=input in-interface=wg-gandal src-address=$wg protocol=tcp dst-port=8443 action=accept comment=\"GANDAL API\" place-before=[find where comment=\"GANDAL refus\"] } else={ /ip firewall filter add chain=input in-interface=wg-gandal src-address=$wg protocol=tcp dst-port=8443 action=accept comment=\"GANDAL API\" } }\n";
 
+// RouterOS affiche mal l'UTF-8 dans le terminal et les noms : le script est écrit en ASCII
+$r = strtr($r, ['é'=>'e','è'=>'e','ê'=>'e','ë'=>'e','à'=>'a','â'=>'a','î'=>'i','ï'=>'i','ô'=>'o','û'=>'u','ù'=>'u','ç'=>'c',
+    'É'=>'E','È'=>'E','Ê'=>'E','À'=>'A','Î'=>'I','Ô'=>'O','Ç'=>'C','’'=>"'",'«'=>'"','»'=>'"']);
 file_put_contents($out, $r);
 chmod($out, 0600);
 

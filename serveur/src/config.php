@@ -62,6 +62,8 @@ function cfg(): array {
  *   validity  : durée à partir de la première connexion (format RouterOS)
  *   data_gb   : volume maximal en Go (0 = sans limite)
  *   rate      : débit maximal en Mb/s, envoi et réception
+ *   rate_after: (illimités) débit après épuisement de data_gb, jusqu'à la fin de la durée.
+ *               Le ticket n'est alors pas coupé : le serveur le bascule à ce débit (voir throttle.php).
  */
 function plans(): array {
     return [
@@ -70,13 +72,19 @@ function plans(): array {
         '8go-5j'    => ['label' => '8 Go / 5 jours',               'type' => 'data',  'price' => 500,  'validity' => '5d',  'data_gb' => 8,  'rate' => 5],
         '20go-7j'   => ['label' => '20 Go Haut Débit / 1 semaine', 'type' => 'data',  'price' => 1000, 'validity' => '7d',  'data_gb' => 20, 'rate' => 5],
         'illim-1j'  => ['label' => 'Illimité / 1 jour',            'type' => 'illim', 'price' => 250,  'validity' => '1d',  'data_gb' => 0,  'rate' => 2],
-        'illim-7j'  => ['label' => 'Illimité / 1 semaine (25 Go)', 'type' => 'illim', 'price' => 1500, 'validity' => '7d',  'data_gb' => 25, 'rate' => 2],
-        'illim-14j' => ['label' => 'Illimité / 2 semaines (30 Go)','type' => 'illim', 'price' => 2500, 'validity' => '14d', 'data_gb' => 30, 'rate' => 2],
-        'illim-30j' => ['label' => 'Illimité / 1 mois (40 Go)',    'type' => 'illim', 'price' => 5000, 'validity' => '30d', 'data_gb' => 40, 'rate' => 2],
+        'illim-7j'  => ['label' => 'Illimité / 1 semaine (25 Go)', 'type' => 'illim', 'price' => 1500, 'validity' => '7d',  'data_gb' => 25, 'rate' => 5, 'rate_after' => 2],
+        'illim-14j' => ['label' => 'Illimité / 2 semaines (30 Go)','type' => 'illim', 'price' => 2500, 'validity' => '14d', 'data_gb' => 30, 'rate' => 5, 'rate_after' => 2],
+        'illim-30j' => ['label' => 'Illimité / 1 mois (40 Go)',    'type' => 'illim', 'price' => 5000, 'validity' => '30d', 'data_gb' => 40, 'rate' => 5, 'rate_after' => 2],
     ];
 }
 
 /* Nom du profil User Manager d'un forfait */
 function um_profile(string $planId): string { return 'gd-' . $planId; }
+
+/* Attribut RADIUS de débit (réception/envoi vus du routeur), posé sur l'utilisateur User Manager */
+function rate_attr(int $mbps): string { return "Mikrotik-Rate-Limit:{$mbps}M/{$mbps}M"; }
+
+/* Forfait à débit réduit après son volume (illimités avec volume inclus) */
+function plan_throttles(array $p): bool { return ($p['rate_after'] ?? 0) > 0 && $p['data_gb'] > 0; }
 
 date_default_timezone_set('Africa/Douala');

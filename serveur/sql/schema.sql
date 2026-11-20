@@ -57,6 +57,9 @@ CREATE TABLE IF NOT EXISTS tickets (
   state           text,
   updated_at      timestamptz
 );
+-- Illimités avec volume inclus : date de passage au débit réduit (NULL = débit plein)
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS throttled_at timestamptz;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS rate_after_mbps integer NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS tickets_stock_idx ON tickets (plan_id, created_at) WHERE order_reference IS NULL;
 
 -- Sessions relevées sur le routeur (compteurs cumulés)
@@ -145,7 +148,7 @@ CREATE OR REPLACE VIEW v_ventes AS
 
 CREATE OR REPLACE VIEW v_tickets AS
   SELECT t.username, t.plan_id, p.label AS forfait, t.source, t.order_reference,
-         t.created_at, t.assigned_at, t.first_login_at, t.expires_at, t.state
+         t.created_at, t.assigned_at, t.first_login_at, t.expires_at, t.state, t.throttled_at
   FROM tickets t JOIN plans p ON p.id = t.plan_id;
 
 CREATE OR REPLACE VIEW v_conso AS

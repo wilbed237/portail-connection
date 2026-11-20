@@ -88,7 +88,12 @@ Glissez le fichier dans *Files* via WinBox, puis dans le terminal : `/import gan
 
 Il configure :
 - User Manager comme serveur RADIUS du hotspot (`use-radius=yes`, comptabilité toutes les 5 min) ;
-- un profil `gd-<forfait>` par forfait : validité à partir de la première connexion, volume maximal, débit (5 Mb/s pour les forfaits en Go, 2 Mb/s pour les illimités) ;
+- un profil `gd-<forfait>` par forfait : validité à partir de la première connexion, volume maximal et débit
+  (5 Mb/s pour les forfaits en Go, coupés à leur volume ; 2 Mb/s pour l'illimité 1 jour) ;
+- pour les illimités 1 semaine, 2 semaines et 1 mois, ni coupure au volume ni débit dans le profil : le débit est posé
+  sur chaque ticket (attribut `Mikrotik-Rate-Limit`, 5 Mb/s). Quand le ticket dépasse 25, 30 ou 40 Go, le serveur
+  (relevé toutes les 5 min) passe l'attribut à 2 Mb/s et ferme la session hotspot pour l'appliquer ; le ticket reste
+  valable jusqu'à la fin de sa durée. La page *Tickets* de l'espace admin indique la date de passage au débit réduit ;
 - un compte `gandal-api` limité aux droits `read, write, api, rest-api` et à l'adresse du serveur dans le tunnel ;
 - l'API REST en HTTPS sur le port 8443 (le 443 est pris par le `reverse-proxy` de RouterOS) avec un certificat auto-signé,
   joignable seulement depuis `10.66.66.1` (service et pare-feu), et l'API en clair désactivée ;
@@ -125,6 +130,10 @@ elle voit tout en lecture seule, numéros masqués.
 - Clés IZI Spot dans `.env` : `PAYMENT_PUBLISHABLE_KEY`, `PAYMENT_SECRET_KEY`, `WEBHOOK_SIGNING_SECRET`.
 - Webhook : l'adresse est enregistrée **par IZI Spot**. Donnez-leur `https://<votre domaine>/webhook.php`.
 - Premier essai : un vrai paiement de 100 FCFA (forfait 1 Go), puis vérifiez le ticket, l'espace admin et le solde dans la page Comptabilité.
+- Vérifiez une fois le débit porté par le ticket (illimités 1 semaine et plus), avec un ticket de test créé par
+  `bin/stock.php illim-7j 1` et connecté sur un téléphone : `/queue simple print where dynamic` doit montrer 5M/5M.
+  Puis, sur le routeur : `/user-manager user set [find name=<ticket>] attributes=Mikrotik-Rate-Limit:2M/2M`,
+  `/ip hotspot active remove [find user=<ticket>]`, reconnexion du téléphone : la file doit montrer 2M/2M.
 
 Frais IZI Spot : 7 % arrondis au-dessus (100 FCFA payés = 93 crédités). Ils sont enregistrés tels que l'API les renvoie,
 et la page Comptabilité affiche le solde disponible au retrait (retraits depuis l'espace IZI Spot, minimum 1 000 FCFA).

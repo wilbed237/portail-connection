@@ -1,7 +1,7 @@
 <?php
 /*
  * Simulateur pour les tests : API de paiement IZI Spot (/izi/…) et API REST RouterOS 7 (/ros/rest/…).
- * Pilotage : /ctl/pay?ref=…  /ctl/router?down=1|0  /ctl/state
+ * Pilotage : /ctl/pay?ref=…  /ctl/router?down=1|0  /ctl/usage?user=…&bytes=…  /ctl/state
  * Lancement : php -S 0.0.0.0:8080 tests/mock.php
  */
 
@@ -10,7 +10,7 @@ declare(strict_types=1);
 $file = sys_get_temp_dir() . '/gandal-mock.json';
 $fh = fopen($file . '.lock', 'c'); flock($fh, LOCK_EX);
 $S = is_file($file) ? json_decode((string)file_get_contents($file), true) : [];
-$S += ['payments' => [], 'idem' => [], 'users' => [], 'profiles' => [], 'down' => false, 'n' => 0];
+$S += ['payments' => [], 'idem' => [], 'users' => [], 'profiles' => [], 'down' => false, 'n' => 0, 'kicked' => []];
 $save = function () use (&$S, $file) { file_put_contents($file, json_encode($S)); };
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -31,6 +31,7 @@ if ($path === '/ctl/pay') {   // ?ref=<notre référence>&status=succeeded|faile
     $save(); out(200, ['ok' => true]);
 }
 if ($path === '/ctl/router') { $S['down'] = ($query['down'] ?? '0') === '1'; $save(); out(200, ['down' => $S['down']]); }
+if ($path === '/ctl/usage') { $S['users'][$query['user']]['extra'] = (int)$query['bytes']; $save(); out(200, ['ok' => true]); }   // consommation ajoutée
 if ($path === '/ctl/state') { out(200, $S); }
 
 /* ---------- IZI Spot (d'après INTEGRATION.md) ---------- */
@@ -81,11 +82,23 @@ if (str_starts_with($path, '/ros/rest/')) {
     if (($_SERVER['PHP_AUTH_USER'] ?? '') !== 'gandal-api' || ($_SERVER['PHP_AUTH_PW'] ?? '') !== 'test') { out(401, ['error' => 401, 'message' => 'Unauthorized']); }
     $r = substr($path, strlen('/ros/rest'));
     if ($r === '/system/resource') { out(200, ['cpu-load' => '7', 'free-memory' => '180000000', 'total-memory' => '268435456', 'uptime' => '3d4h']); }
-    if ($r === '/ip/hotspot/active') { out(200, array_map(fn($u) => ['user' => $u], array_slice(array_keys($S['users']), 0, 3))); }
+    if ($r === '/ip/hotspot/active') {
+        $list = array_map(fn($u) => ['.id' => '*A' . strtoupper(substr(md5($u), 0, 8)), 'user' => $u], array_values(array_filter(array_keys($S['users']), fn($u) => !in_array($u, $S['kicked'], true))));
+        if (isset($query['user'])) { $list = array_values(array_filter($list, fn($a) => $a['user'] === $query['user'])); }
+        out(200, $list);
+    }
+    if ($m === 'DELETE' && preg_match('#^/ip/hotspot/active/(.+)$#', $r, $x)) {
+        foreach (array_keys($S['users']) as $u) { if ('*A' . strtoupper(substr(md5($u), 0, 8)) === $x[1]) { $S['kicked'][] = $u; $save(); out(204, null); } }
+        out(404, ['error' => 404, 'message' => 'no such item']);
+    }
+    if ($m === 'PATCH' && preg_match('#^/user-manager/user/(.+)$#', $r, $x)) {
+        foreach ($S['users'] as $name => $u) { if ($u['.id'] === $x[1]) { $S['users'][$name] = array_merge($u, $body); $save(); out(200, $S['users'][$name]); } }
+        out(404, ['error' => 404, 'message' => 'no such item']);
+    }
     if ($r === '/user-manager/user') {
         if ($m === 'PUT') {
             if (isset($S['users'][$body['name']])) { out(400, ['error' => 400, 'message' => 'Bad Request', 'detail' => 'failure: user with the same name already exists']); }
-            $S['users'][$body['name']] = $body + ['started' => date('Y-m-d H:i:s')]; $save(); out(201, ['.id' => '*' . count($S['users'])] + $body);
+            $S['users'][$body['name']] = $body + ['.id' => '*' . (count($S['users']) + 1), 'started' => date('Y-m-d H:i:s')]; $save(); out(201, $S['users'][$body['name']]);
         }
         $list = array_values(array_filter($S['users'], fn($u) => !isset($query['name']) || $u['name'] === $query['name']));
         out(200, $list);
@@ -108,7 +121,7 @@ if (str_starts_with($path, '/ros/rest/')) {
         foreach ($S['users'] as $name => $u) {
             $i++;
             $out[] = ['.id' => '*' . $i, 'user' => $name, 'started' => $u['started'] ?? '2026-01-01 00:00:00', 'ended' => '', 'active' => 'true',
-                      'uptime' => '1h', 'download' => (string)(52428800 * $S['n']), 'upload' => (string)(5242880 * $S['n']),
+                      'uptime' => '1h', 'download' => (string)(52428800 * $S['n'] + ($u['extra'] ?? 0)), 'upload' => (string)(5242880 * $S['n']),
                       'calling-station-id' => 'AA:BB:CC:00:00:0' . ($i % 10), 'user-address' => '10.5.50.' . (10 + $i)];
         }
         out(200, $out);
