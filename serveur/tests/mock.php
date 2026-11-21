@@ -30,6 +30,7 @@ if ($path === '/ctl/pay') {   // ?ref=<notre référence>&status=succeeded|faile
     }
     $save(); out(200, ['ok' => true]);
 }
+if ($path === '/ctl/renum') { $S['renum'] = true; $save(); out(200, ['ok' => true]); }   // simule un redémarrage du routeur
 if ($path === '/ctl/router') { $S['down'] = ($query['down'] ?? '0') === '1'; $save(); out(200, ['down' => $S['down']]); }
 if ($path === '/ctl/usage') { $S['users'][$query['user']]['extra'] = (int)$query['bytes']; $save(); out(200, ['ok' => true]); }   // consommation ajoutée
 if ($path === '/ctl/state') { out(200, $S); }
@@ -115,6 +116,7 @@ if (str_starts_with($path, '/ros/rest/')) {
         out(200, $list);
     }
     if ($r === '/user-manager/session') {
+        if (!empty($S['renum'])) { $query['renum'] = 1; }
         // Chaque utilisateur a une session dont les compteurs grossissent à chaque relevé (50 Mo / 5 Mo).
         $S['n']++; $save();
         $out = []; $i = 0;
@@ -123,7 +125,12 @@ if (str_starts_with($path, '/ros/rest/')) {
             $out[] = ['.id' => '*' . $i, 'user' => $name, 'started' => $u['started'] ?? '2026-01-01 00:00:00', 'ended' => '', 'active' => 'true',
                       'uptime' => '1h', 'download' => (string)(52428800 * $S['n'] + ($u['extra'] ?? 0)), 'upload' => (string)(5242880 * $S['n']),
                       'calling-station-id' => 'AA:BB:CC:00:00:0' . ($i % 10), 'user-address' => '10.5.50.' . (10 + $i)];
+            if ($i === 1) {   // session ancienne, déjà terminée : doit être datée de sa fin, pas du relevé
+                $out[] = ['.id' => '*h1', 'acct-session-id' => 'h1', 'user' => $name, 'started' => '2026-01-05 09:00:00', 'ended' => '2026-01-05 10:00:00',
+                          'active' => 'false', 'uptime' => '1h', 'download' => '104857601', 'upload' => '0'];
+            }
         }
+        if (!empty($query['renum'])) { foreach ($out as &$o) { $o['.id'] = '*R' . $o['.id']; } unset($o); }   // numéros internes changés (redémarrage)
         out(200, $out);
     }
     out(404, ['error' => 404, 'message' => 'no such command']);

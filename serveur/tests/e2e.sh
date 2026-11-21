@@ -104,6 +104,11 @@ worker
 N2=$(sql "SELECT COALESCE(sum(bytes_down),0) FROM usage_samples")
 [ "$N2" -gt "$N1" ] && ok "consommation relevée par tranches ($N1 → $N2 octets)" || ko "consommation relevée" "$N1 → $N2"
 check "deltas, pas de double comptage (50 Mo par relevé et par ticket)" "$(sql "SELECT bool_and(bytes_down = 52428800) FROM usage_samples WHERE ts > now() - interval '1 minute' AND bytes_down > 0 AND ts = (SELECT max(ts) FROM usage_samples)")" "t"
+check "session historique datée de sa fin, pas comptée aujourd'hui" "$(sql "SELECT count(*) FROM usage_samples WHERE bytes_down = 104857601 AND ts = '2026-01-05 10:00:00+01'")" "1"
+check "rien d'aujourd'hui ne vient de l'historique" "$(sql "SELECT count(*) FROM usage_samples WHERE ts >= date_trunc('day', now()) AND bytes_down = 104857601")" "0"
+B1=$(sql "SELECT sum(bytes_down) FROM usage_samples WHERE ts < now() - interval '1 day'")
+mock "/ctl/renum"; worker
+check "redémarrage du routeur (.id changés) : pas de double comptage" "$(sql "SELECT sum(bytes_down) FROM usage_samples WHERE ts < now() - interval '1 day'")" "$B1"
 check "état du routeur enregistré" "$(sql "SELECT reachable FROM router_health ORDER BY ts DESC LIMIT 1")" "t"
 check "date d'expiration des tickets relevée" "$(sql "SELECT count(*) > 0 FROM tickets WHERE expires_at IS NOT NULL")" "t"
 

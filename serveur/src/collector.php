@@ -15,6 +15,9 @@ function pick(array $row, array $names, $default = null) {
     return $default;
 }
 
+/* Clé d'une session User Manager : utilisateur, identifiant de comptabilité RADIUS et heure de début (heure du routeur) */
+function session_key(string $user, string $acct, string $started): string { return $user . '|' . $acct . '|' . $started; }
+
 function collect(): void {
     $res = ros('GET', '/system/resource');
     if (!ros_ok($res)) {
@@ -40,7 +43,9 @@ function collect(): void {
         foreach ($sessions['data'] ?? [] as $s) {
             $user = (string)pick($s, ['user', 'username'], '');
             if ($user === '') { continue; }
-            $id = pick($s, ['.id'], '') . '|' . pick($s, ['acct-session-id', 'started'], '');
+            // Identifiant stable : le numéro interne « .id » du routeur peut changer après un redémarrage,
+            // ce qui ferait recompter toute la consommation des sessions déjà relevées.
+            $id = session_key($user, (string)pick($s, ['acct-session-id'], ''), (string)pick($s, ['started'], ''));
             $down = (int)pick($s, ['download', 'bytes-out'], 0);
             $up = (int)pick($s, ['upload', 'bytes-in'], 0);
             $ended = ros_date((string)pick($s, ['ended'], ''));
@@ -50,6 +55,9 @@ function collect(): void {
                 $prev = one('SELECT bytes_down, bytes_up FROM usage_sessions WHERE id = ? FOR UPDATE', [$id]);
                 $dd = $prev ? max(0, $down - (int)$prev['bytes_down']) : $down;
                 $du = $prev ? max(0, $up - (int)$prev['bytes_up']) : $up;
+                // Session vue pour la première fois alors qu'elle est déjà terminée (historique du routeur au
+                // premier relevé, ou relevé manqué) : sa consommation est datée de sa fin, pas d'aujourd'hui.
+                $at = (!$prev && $ended !== null && !$isActive) ? $ended : null;
                 q('INSERT INTO usage_sessions (id, username, started_at, ended_at, uptime_s, bytes_down, bytes_up, mac, ip, active, updated_at)
                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
                    ON CONFLICT (id) DO UPDATE SET ended_at = EXCLUDED.ended_at, uptime_s = EXCLUDED.uptime_s,
@@ -59,8 +67,8 @@ function collect(): void {
                     $isActive ? 'true' : 'false',
                 ]);
                 if ($dd + $du > 0) {
-                    q('INSERT INTO usage_samples (ts, username, plan_id, bytes_down, bytes_up) VALUES (now(), ?, ?, ?, ?)',
-                      [$user, $planOf[$user] ?? null, $dd, $du]);
+                    q('INSERT INTO usage_samples (ts, username, plan_id, bytes_down, bytes_up) VALUES (COALESCE(?::timestamptz, now()), ?, ?, ?, ?)',
+                      [$at, $user, $planOf[$user] ?? null, $dd, $du]);
                     $n++;
                 }
             });
