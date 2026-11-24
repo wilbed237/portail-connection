@@ -11,6 +11,7 @@ Portail captif du réseau Wi-Fi **GANDAL** (Département du GI), pour hotspot Mi
 | `status.html` | Client connecté qui ouvre l'adresse du hotspot : ticket, durée, données, volume restant, boutons « Changer de forfait » et « Se déconnecter » |
 | `logout.html` | Après la déconnexion : bilan de la session, « Acheter un nouveau forfait » ou « Me connecter avec un autre ticket » |
 | `gandal.css` | Styles communs de `alogin.html`, `status.html` et `logout.html` |
+| `affiches/` | Affiche A4 « Se déconnecter ou changer de forfait : http://gi.wifi » avec QR code, et cartes à découper (`.pdf` à imprimer, `.html` source) |
 | `logo.jpeg` | Logo GANDAL |
 | `img/` | Affiches optimisées de l'Académie Cisco ENSPY |
 | `img/logos/` | Logos des moyens de paiement et de contact (voir ci-dessous) |
@@ -50,6 +51,7 @@ ne les modifiez pas et ne laissez pas croire à un partenariat avec MTN, Orange 
 
 1. Copier `login.html`, `alogin.html`, `status.html`, `logout.html`, `gandal.css`, `logo.jpeg` et le dossier `img/` (avec `img/logos/`)
    dans le dossier `hotspot/` du routeur MikroTik (remplacer les pages par défaut du même nom).
+   Le hotspot (profil `hsprof1`) a pour nom `gi.wifi` : un client connecté ouvre **http://gi.wifi** pour se déconnecter ou changer de forfait.
    La déconnexion efface le cookie du hotspot (`erase-cookie=on`) : sans cela, l'appareil serait reconnecté
    automatiquement avec l'ancien ticket (connexion par cookie et par MAC) et ne pourrait pas changer de forfait.
 2. Déployer `serveur/` sur un VPS avec Docker en suivant [`serveur/README.md`](serveur/README.md) :

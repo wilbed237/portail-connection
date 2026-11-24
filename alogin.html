@@ -8,7 +8,8 @@
 </head>
 <body>
 <!--
-  Page affichée par le hotspot (MikroTik) juste après la connexion, avant de renvoyer le client vers le site demandé.
+  Page affichée par le hotspot (MikroTik) juste après la connexion. Pas de redirection automatique :
+  le client a le temps de noter l'adresse pour se déconnecter, puis touche « Continuer ».
   Les variables MikroTik (dollar et parenthèse) sont remplacées par le routeur. Elle indique où revenir pour se déconnecter ou changer de forfait.
 -->
 <main class="card">
@@ -21,10 +22,11 @@
   <a class="btn btn-primary" id="go" href="$(link-redirect)">Continuer vers Internet</a>
   <a class="btn btn-ghost" href="$(link-status)">Voir ma connexion</a>
 
-  <p class="note">Pour <b>vous déconnecter</b> ou <b>changer de forfait</b>, ouvrez <b>$(hostname)</b> dans votre navigateur.</p>
+  <div class="note">
+    Pour <b>vous déconnecter</b> ou <b>changer de forfait</b> plus tard, ouvrez dans votre navigateur :
+    <a class="addr" href="$(link-status)">http://$(hostname)</a>
+    Tapez bien <b>http://</b> au début. Astuce : ajoutez cette adresse à vos favoris.
+  </div>
 </main>
-<script>
-  setTimeout(function () { location.href = document.getElementById('go').href; }, 4000);
-</script>
 </body>
 </html>
