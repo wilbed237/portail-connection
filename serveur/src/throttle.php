@@ -38,7 +38,11 @@ function um_throttle(string $username, int $mbps): string {
     if (!ros_id($id)) { return 'utilisateur absent de User Manager'; }
     $r = ros('PATCH', '/user-manager/user/' . $id, ['attributes' => rate_attr($mbps)]);
     if (!ros_ok($r)) { return ros_error($r); }
+    return hotspot_kick($username);
+}
 
+/* Ferme les sessions hotspot d'un utilisateur. Renvoie '' si tout s'est bien passé. */
+function hotspot_kick(string $username): string {
     $active = ros('GET', '/ip/hotspot/active?user=' . rawurlencode($username));
     if (!ros_ok($active)) { return ros_error($active); }
     foreach ($active['data'] ?? [] as $a) {

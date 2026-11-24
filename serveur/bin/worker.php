@@ -2,7 +2,7 @@
 /*
  * Tâches de fond (conteneur « worker ») :
  *  - toutes les 15 s : commandes en attente (au cas où le client a fermé la page et que le webhook
- *    n'arrive pas) et tickets à créer pour les clients payés ;
+ *    n'arrive pas), tickets à créer pour les clients payés, et coupure à minuit des forfaits « 1 jour » ;
  *  - toutes les 5 min : collecte sur le routeur, débit réduit des illimités au-delà de leur volume, alertes, nettoyage.
  * Usage : php bin/worker.php           (boucle infinie)
  *         php bin/worker.php --once    (un seul passage, pour les tests)
@@ -28,6 +28,7 @@ function tick(): void {
     foreach ($refs as $r) {
         try { order_process($r['reference']); } catch (Throwable $e) { logline('commande ' . $r['reference'] . ' : ' . $e->getMessage()); }
     }
+    try { day_end_check(); } catch (Throwable $e) { logline('fin de journée : ' . $e->getMessage()); }
     // Commandes jamais payées depuis plus de 3 heures
     q("UPDATE orders SET status = 'expired' WHERE status = 'pending' AND created_at < now() - interval '3 hours'");
 }

@@ -91,4 +91,5 @@ function collect(): void {
     q('UPDATE tickets t SET first_login_at = s.first FROM
          (SELECT username, min(started_at) AS first FROM usage_sessions GROUP BY username) s
        WHERE t.username = s.username AND t.first_login_at IS NULL AND s.first IS NOT NULL');
+    day_end_expiry();   // forfaits « 1 jour » : fin à 23:59:59 du jour de la première connexion, pas celle du routeur
 }

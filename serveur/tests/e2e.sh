@@ -128,6 +128,21 @@ check "illimité 1 mois sous son volume : toujours à 5 Mb/s" "$(sql "SELECT thr
 T1=$(sql "SELECT throttled_at FROM tickets WHERE username='$U'"); worker
 check "pas de seconde bascule au relevé suivant" "$(sql "SELECT throttled_at FROM tickets WHERE username='$U'")" "$T1"
 
+echo "== Forfaits 1 jour : fin à 23:59:59 du jour de la première connexion"
+U3=$(sql "SELECT username FROM tickets WHERE order_reference='$REF3'")
+check "1 jour activé aujourd'hui : expire ce soir à 23:59:59" "$(sql "SELECT to_char(expires_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI:SS') FROM tickets WHERE username='$U3'")" "$(TZ=Africa/Douala date +%F) 23:59:59"
+worker
+check "1 jour activé aujourd'hui : pas coupé" "$(ustate "print(d['users']['$U3'].get('disabled','no'))")" "no"
+# Première connexion hier soir à 23:50 : le ticket aurait dû se terminer à minuit
+sql "UPDATE tickets SET first_login_at = (current_date - 1 + time '23:50') AT TIME ZONE 'Africa/Douala' WHERE username IN ('$U3', '$U2')" >/dev/null
+worker
+check "1 jour activé hier : désactivé sur le routeur" "$(ustate "print(d['users']['$U3'].get('disabled','no'))")" "yes"
+check "1 jour activé hier : session hotspot fermée" "$(ustate "print('$U3' in d['kicked'])")" "True"
+check "1 jour activé hier : fin enregistrée, expiré à 23:59:59 hier" "$(sql "SELECT ended_at IS NOT NULL AND to_char(expires_at AT TIME ZONE 'Africa/Douala', 'HH24:MI:SS') = '23:59:59' AND expires_at < now() FROM tickets WHERE username='$U3'")" "t"
+check "forfait de 3 jours activé hier : pas coupé à minuit" "$(ustate "print(d['users']['$U2'].get('disabled','no'))")" "no"
+E1=$(sql "SELECT ended_at FROM tickets WHERE username='$U3'"); worker
+check "pas de seconde coupure au passage suivant" "$(sql "SELECT ended_at FROM tickets WHERE username='$U3'")" "$E1"
+
 echo "== Espace d'administration"
 OUT=$($DC exec -T worker php bin/admin.php creer compta1 comptable 2>&1)
 APW=$(echo "$OUT" | sed -n 's/^Mot de passe : //p'); SEC=$(echo "$OUT" | sed -n 's/^Clé 2FA : //p')

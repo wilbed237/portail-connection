@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 -- Illimités avec volume inclus : date de passage au débit réduit (NULL = débit plein)
 ALTER TABLE tickets ADD COLUMN IF NOT EXISTS throttled_at timestamptz;
+-- Forfaits « 1 jour » : heure à laquelle le serveur a désactivé le ticket sur le routeur, à minuit
+ALTER TABLE tickets ADD COLUMN IF NOT EXISTS ended_at timestamptz;
 ALTER TABLE plans ADD COLUMN IF NOT EXISTS rate_after_mbps integer NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS tickets_stock_idx ON tickets (plan_id, created_at) WHERE order_reference IS NULL;
 

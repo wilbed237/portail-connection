@@ -60,6 +60,9 @@ function cfg(): array {
  * C'est ce prix qui est facturé, quoi qu'envoie le navigateur.
  *   type      : data (forfait en Go) ou illim (illimité)
  *   validity  : durée à partir de la première connexion (format RouterOS)
+ *   midnight  : forfait « 1 jour » : il se termine à 23:59:59 le jour de la première connexion,
+ *               quelle que soit l'heure de connexion. Le serveur le coupe à minuit (voir expiry.php) ;
+ *               validity reste en filet de sécurité sur le routeur.
  *   data_gb   : volume maximal en Go (0 = sans limite)
  *   rate      : débit maximal en Mb/s, envoi et réception
  *   rate_after: (illimités) débit après épuisement de data_gb, jusqu'à la fin de la durée.
@@ -67,11 +70,11 @@ function cfg(): array {
  */
 function plans(): array {
     return [
-        '1go-1j'    => ['label' => '1 Go / 1 jour',                'type' => 'data',  'price' => 100,  'validity' => '1d',  'data_gb' => 1,  'rate' => 5],
+        '1go-1j'    => ['label' => '1 Go / 1 jour',                'type' => 'data',  'price' => 100,  'validity' => '1d',  'data_gb' => 1,  'rate' => 5, 'midnight' => true],
         '4go-3j'    => ['label' => '4 Go / 3 jours',               'type' => 'data',  'price' => 300,  'validity' => '3d',  'data_gb' => 4,  'rate' => 5],
         '8go-5j'    => ['label' => '8 Go / 5 jours',               'type' => 'data',  'price' => 500,  'validity' => '5d',  'data_gb' => 8,  'rate' => 5],
         '20go-7j'   => ['label' => '20 Go Haut Débit / 1 semaine', 'type' => 'data',  'price' => 1000, 'validity' => '7d',  'data_gb' => 20, 'rate' => 5],
-        'illim-1j'  => ['label' => 'Illimité / 1 jour',            'type' => 'illim', 'price' => 250,  'validity' => '1d',  'data_gb' => 0,  'rate' => 2],
+        'illim-1j'  => ['label' => 'Illimité / 1 jour',            'type' => 'illim', 'price' => 250,  'validity' => '1d',  'data_gb' => 0,  'rate' => 2, 'midnight' => true],
         'illim-7j'  => ['label' => 'Illimité / 1 semaine (25 Go)', 'type' => 'illim', 'price' => 1500, 'validity' => '7d',  'data_gb' => 25, 'rate' => 5, 'rate_after' => 2],
         'illim-14j' => ['label' => 'Illimité / 2 semaines (30 Go)','type' => 'illim', 'price' => 2500, 'validity' => '14d', 'data_gb' => 30, 'rate' => 5, 'rate_after' => 2],
         'illim-30j' => ['label' => 'Illimité / 1 mois (40 Go)',    'type' => 'illim', 'price' => 5000, 'validity' => '30d', 'data_gb' => 40, 'rate' => 5, 'rate_after' => 2],
@@ -83,6 +86,9 @@ function um_profile(string $planId): string { return 'gd-' . $planId; }
 
 /* Attribut RADIUS de débit (réception/envoi vus du routeur), posé sur l'utilisateur User Manager */
 function rate_attr(int $mbps): string { return "Mikrotik-Rate-Limit:{$mbps}M/{$mbps}M"; }
+
+/* Forfaits qui se terminent à minuit le jour de la première connexion */
+function midnight_plans(): array { return array_keys(array_filter(plans(), fn($p) => !empty($p['midnight']))); }
 
 /* Forfait à débit réduit après son volume (illimités avec volume inclus) */
 function plan_throttles(array $p): bool { return ($p['rate_after'] ?? 0) > 0 && $p['data_gb'] > 0; }
