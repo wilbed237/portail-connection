@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion réussie · GANDAL</title>
+<link rel="stylesheet" href="gandal.css">
+</head>
+<body>
+<!--
+  Page affichée par le hotspot (MikroTik) juste après la connexion, avant de renvoyer le client vers le site demandé.
+  Les variables MikroTik (dollar et parenthèse) sont remplacées par le routeur. Elle indique où revenir pour se déconnecter ou changer de forfait.
+-->
+<main class="card">
+  <img class="logo" src="logo.jpeg" alt="Logo GANDAL">
+  <p class="brand">GANDAL</p>
+  <span class="pill on">Connecté</span>
+  <h1>Connexion réussie</h1>
+  <p class="sub">Vous êtes connecté avec le ticket <b>$(username)</b>.</p>
+
+  <a class="btn btn-primary" id="go" href="$(link-redirect)">Continuer vers Internet</a>
+  <a class="btn btn-ghost" href="$(link-status)">Voir ma connexion</a>
+
+  <p class="note">Pour <b>vous déconnecter</b> ou <b>changer de forfait</b>, ouvrez <b>$(hostname)</b> dans votre navigateur.</p>
+</main>
+<script>
+  setTimeout(function () { location.href = document.getElementById('go').href; }, 4000);
+</script>
+</body>
+</html>

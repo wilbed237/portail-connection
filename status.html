@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connecté · GANDAL</title>
+<link rel="stylesheet" href="gandal.css">
+</head>
+<body>
+<!--
+  Page d'état du hotspot (MikroTik), affichée à un client connecté qui ouvre l'adresse du hotspot.
+  Les variables MikroTik (dollar et parenthèse) sont remplacées par le routeur : pas d'autre usage de cette syntaxe dans la page.
+  Déconnexion avec erase-cookie=on : le cookie (et le cookie MAC) sont effacés, sinon l'appareil
+  serait reconnecté tout seul avec le même ticket et ne pourrait pas passer à un autre forfait.
+-->
+<main class="card">
+  <img class="logo" src="logo.jpeg" alt="Logo GANDAL">
+  <p class="brand">GANDAL</p>
+  <span class="pill on">Connecté</span>
+  <h1>Vous êtes connecté</h1>
+  <p class="sub">Bonne navigation sur le réseau du Département du GI.</p>
+
+  <div class="stats">
+    <div class="stat wide"><small>Ticket</small><b>$(username)</b></div>
+    <div class="stat"><small>Connecté depuis</small><b>$(uptime)</b></div>
+    <div class="stat"><small>Adresse IP</small><b>$(ip)</b></div>
+    <div class="stat"><small>Données reçues</small><b>$(bytes-out-nice)</b></div>
+    <div class="stat"><small>Données envoyées</small><b>$(bytes-in-nice)</b></div>
+    $(if remain-bytes-total)<div class="stat wide"><small>Volume restant sur le forfait</small><b>$(remain-bytes-total-nice)</b></div>$(endif)
+  </div>
+
+  <a class="btn btn-primary" id="change" href="$(link-logout)?erase-cookie=on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+    Changer de forfait
+  </a>
+  <a class="btn btn-danger" id="logout" href="$(link-logout)?erase-cookie=on">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+    Se déconnecter
+  </a>
+
+  <p class="note">Votre ticket <b>reste valable jusqu'à la fin de sa durée</b>, même déconnecté (forfaits 1 jour : jusqu'à 23h59).
+    Gardez vos identifiants pour vous reconnecter plus tard. <b>Changer de forfait</b> vous déconnecte et ouvre la liste des forfaits.</p>
+  <p class="foot">Revenez sur cette page à tout moment en ouvrant <a href="$(link-status)">$(hostname)</a></p>
+</main>
+<script>
+  // « Changer de forfait » : la page de déconnexion ouvrira directement les forfaits
+  (function () {
+    function mark(v) { try { sessionStorage.setItem('gandal-apres-deconnexion', v); } catch (e) {} }
+    document.getElementById('change').addEventListener('click', function () { mark('forfaits'); });
+    document.getElementById('logout').addEventListener('click', function () { mark(''); });
+    // Compteurs à jour : rechargement toutes les minutes
+    setTimeout(function () { location.reload(); }, 60000);
+  })();
+</script>
+</body>
+</html>

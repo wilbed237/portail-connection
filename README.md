@@ -7,6 +7,10 @@ Portail captif du réseau Wi-Fi **GANDAL** (Département du GI), pour hotspot Mi
 | Élément | Rôle |
 |---|---|
 | `login.html` | Page de connexion du hotspot : connexion, forfaits, publicité de l'Académie Cisco ENSPY, aide |
+| `alogin.html` | Après la connexion : « Connexion réussie », puis redirection vers le site demandé |
+| `status.html` | Client connecté qui ouvre l'adresse du hotspot : ticket, durée, données, volume restant, boutons « Changer de forfait » et « Se déconnecter » |
+| `logout.html` | Après la déconnexion : bilan de la session, « Acheter un nouveau forfait » ou « Me connecter avec un autre ticket » |
+| `gandal.css` | Styles communs de `alogin.html`, `status.html` et `logout.html` |
 | `logo.jpeg` | Logo GANDAL |
 | `img/` | Affiches optimisées de l'Académie Cisco ENSPY |
 | `img/logos/` | Logos des moyens de paiement et de contact (voir ci-dessous) |
@@ -44,7 +48,10 @@ ne les modifiez pas et ne laissez pas croire à un partenariat avec MTN, Orange 
 
 ## Installation
 
-1. Copier `login.html`, `logo.jpeg` et le dossier `img/` (avec `img/logos/`) dans le dossier `hotspot/` du routeur MikroTik.
+1. Copier `login.html`, `alogin.html`, `status.html`, `logout.html`, `gandal.css`, `logo.jpeg` et le dossier `img/` (avec `img/logos/`)
+   dans le dossier `hotspot/` du routeur MikroTik (remplacer les pages par défaut du même nom).
+   La déconnexion efface le cookie du hotspot (`erase-cookie=on`) : sans cela, l'appareil serait reconnecté
+   automatiquement avec l'ancien ticket (connexion par cookie et par MAC) et ne pourrait pas changer de forfait.
 2. Déployer `serveur/` sur un VPS avec Docker en suivant [`serveur/README.md`](serveur/README.md) :
    tunnel WireGuard, User Manager sur le routeur, clés IZI Spot, comptes admin, walled-garden.
 3. Dans `login.html`, passer `PAYMENT_MODE` de `'off'` à `'live'` (`'demo'` simule un paiement : jamais sur le vrai routeur) et renseigner `PAYMENT_API_URL`.

@@ -1199,6 +1199,8 @@
     });
     if (/[?&](reference|trxref|status)=/.test(location.search)) { activate('forfaits'); byId('pendingResume').click(); }
   })();
+  // Lien direct vers un onglet (ex. depuis la page de déconnexion : login#forfaits)
+  if (/^#(forfaits|academie|aide)$/.test(location.hash) && currentTab === 'login') { var anim = CAN_ANIMATE; CAN_ANIMATE = false; activate(location.hash.slice(1)); CAN_ANIMATE = anim; }
 
   // ---- Retrouver un ticket ----
   byId('recoverForm').addEventListener('submit', function(e){
