@@ -119,7 +119,7 @@ foreach (array_slice($rows, 0, 500) as $r) {
            . '<td>' . tag($r['status']) . '</td><td class="mono">' . ($r['ticket_username'] ? '<a href="tickets.php?q=' . h(urlencode($r['ticket_username'])) . '">' . h($r['ticket_username']) . '</a>' : '')
            . ($r['ticket_source'] === 'stock' ? ' <span class="note">stock</span>' : '') . '</td></tr>';
 }
-echo '<div class="grid">' . card((int)$cur['total'] . ' commandes', '<div class="scroll"><table><thead><tr><th>Date</th><th>Référence</th><th>Forfait</th><th class="n">Montant</th><th>Opérateur</th><th>Téléphone</th><th>État</th><th>Ticket</th></tr></thead><tbody>'
+echo '<div class="grid">' . card((int)$cur['total'] . ' commandes', '<div class="scroll"><table class="cards"><thead><tr><th>Date</th><th>Référence</th><th>Forfait</th><th class="n">Montant</th><th>Opérateur</th><th>Téléphone</th><th>État</th><th>Ticket</th></tr></thead><tbody>'
     . ($list ?: '<tr><td colspan="8" class="muted">Aucune commande sur cette période.</td></tr>') . '</tbody></table></div>'
     . (count($rows) > 500 ? '<p class="note">Seules les 500 premières lignes sont affichées. L\'export CSV contient tout.</p>' : ''),
     '<a class="btn secondary" href="?' . h(http_build_query(array_merge($_GET, ['export' => 'csv']))) . '">Exporter en CSV</a>', 'c12') . '</div>';

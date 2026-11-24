@@ -79,7 +79,7 @@ a{color:var(--accent)}
 .me span b{display:block;font-size:13px}.me small{opacity:.6;font-size:12px}.me>span:nth-child(2){flex:1;line-height:1.25}
 .me a{color:var(--brand-ink);opacity:.7;display:grid;place-items:center;width:32px;height:32px;border-radius:8px}.me a:hover{opacity:1;background:rgba(255,255,255,.08)}
 .avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-weight:700}
-main{padding:24px 28px 56px;max-width:1360px;width:100%}
+main{padding:24px 28px 56px;max-width:1360px;width:100%;min-width:0}
 .ph{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 h1{font-size:22px;margin:0;letter-spacing:-.01em}.sub{margin:2px 0 0;color:var(--ink2)}
 h2{font-size:15px;margin:0;font-weight:600}
@@ -177,13 +177,35 @@ button,.btn{background:var(--accent);color:var(--accent-ink);border-color:transp
 #tip strong{display:block;font-size:14px;font-variant-numeric:tabular-nums}#tip span{display:block;opacity:.75;white-space:pre-line}
 @media (max-width:1100px){.c8,.c7,.c6,.c5,.c4{grid-column:span 12}}
 @media (max-width:860px){
- .shell{grid-template-columns:1fr}
+ .shell{grid-template-columns:minmax(0,1fr)}
  .side{position:sticky;top:0;z-index:20;height:auto;flex-direction:row;align-items:center;padding:8px 12px;gap:8px}
  .brand{padding:0 6px 0 0}.brand small{display:none}
- .side nav{flex-direction:row;overflow-x:auto;gap:2px;scrollbar-width:none}.side nav a{padding:8px 10px;white-space:nowrap}.side nav a span{font-size:13px}
+ .side nav{flex-direction:row;overflow-x:auto;gap:2px;scrollbar-width:none;min-width:0}.side nav a{padding:8px 10px;white-space:nowrap}.side nav a span{font-size:13px}
  .side nav a svg{display:none}.me{border:0;padding:0}.me>span:nth-child(2),.avatar{display:none}
  main{padding:16px 16px 48px}.t-v{font-size:22px}
  .hb{grid-template-columns:minmax(90px,40%) minmax(0,1fr) auto;gap:8px}
+ .seg{display:flex;max-width:100%;overflow-x:auto;scrollbar-width:none}
+ .filters>label{flex:1 1 140px}.filters input,.filters select{width:100%}
+ .grid{gap:12px;margin-bottom:12px}.tiles{gap:12px;margin-bottom:12px}
+ .card{padding:14px}
+}
+@media (max-width:560px){
+ .ph{margin-bottom:12px}h1{font-size:20px}
+ .tiles{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .tile{min-height:0;padding:12px}.t-v{font-size:18px}.t-d,.t-n{font-size:12px}
+ .zoomnav{margin-top:-4px}.zn-arrows{width:100%}.zn-arrow{flex:1;text-align:center}
+ .hb{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}.hb-t{grid-column:1 / -1;grid-row:2}
+ .heat{grid-template-columns:28px repeat(24,minmax(0,1fr));gap:2px}
+ .heat .hx{font-size:9.5px}
+ .xaxis span.mh{visibility:hidden}
+ table.cards,table.cards tbody{display:block}table.cards thead{display:none}
+ table.cards tr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;padding:12px 2px;border-bottom:1px solid var(--grid)}
+ table.cards tbody tr:last-child{border-bottom:0}table.cards tbody tr:hover{background:none}
+ table.cards td{display:block;padding:0;border:0;white-space:normal;text-align:left;min-width:0!important;overflow-wrap:anywhere}
+ table.cards td[data-label]::before{content:attr(data-label);display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;margin-bottom:2px}
+ table.cards td:first-child{grid-column:1 / -1;font-weight:600}table.cards td:first-child::before{display:none}
+ table.cards td:has(.meter){grid-column:1 / -1}table.cards td:empty{display:none}
+ .brand{font-size:0;gap:0}.brand .logo{font-size:15px}
 }
 @media (forced-colors:active){.col>b,.hb-t b,.meter b{background:CanvasText}}
 CSS;

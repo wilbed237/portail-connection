@@ -37,6 +37,21 @@ function nice_scale(float $max, int $ticks = 4): array {
     return [$top, $list];
 }
 
+/*
+ * Étiquettes de l'axe horizontal : une sur $every. Sur téléphone (classe .mh masquée en CSS),
+ * on n'en garde qu'environ 6, choisies parmi celles déjà affichées.
+ */
+function xaxis_labels(array $items, int $every): string {
+    $n = count($items);
+    $everyM = $every * (int)max(1, ceil(ceil($n / 6) / $every));
+    $out = '';
+    foreach (array_values($items) as $k => $i) {
+        $shown = $k % $every === 0;
+        $out .= '<span' . ($shown && $k % $everyM !== 0 ? ' class="mh"' : '') . '>' . ($shown ? h($i['x']) : '') . '</span>';
+    }
+    return $out;
+}
+
 function tip_attrs(string $value, string $label): string {
     return ' data-tip="' . h($value) . '" data-tip-label="' . h($label) . '" tabindex="0"';
 }
@@ -67,7 +82,7 @@ function chart_columns(array $items, array $o = []): string {
               . tip_attrs($fmt($i['v']), $i['tip'] ?? $i['x']) . '><b style="height:' . round($pct, 3) . '%"></b></' . $tag . '>';
     }
     $out .= '</div></div><div class="xaxis" style="--n:' . count($items) . '">';
-    foreach ($items as $k => $i) { $out .= '<span>' . ($k % $every === 0 || $k === count($items) - 1 && $every === 1 ? h($i['x']) : '') . '</span>'; }
+    $out .= xaxis_labels($items, $every);
     $hint = array_filter($items, fn($i) => isset($i['href'])) ? '<p class="chart-hint">' . h($o['hint'] ?? 'Cliquez sur une barre pour zoomer.') . '</p>' : '';
     return $out . '</div></div>' . $hint;
 }
@@ -108,7 +123,7 @@ function chart_stacked(array $items, array $series, array $o = []): string {
         $out .= '</div></' . $tag . '>';
     }
     $out .= '</div></div><div class="xaxis" style="--n:' . count($items) . '">';
-    foreach ($items as $k => $i) { $out .= '<span>' . ($k % $every === 0 ? h($i['x']) : '') . '</span>'; }
+    $out .= xaxis_labels($items, $every);
     $hint = array_filter($items, fn($i) => isset($i['href'])) ? '<p class="chart-hint">' . h($o['hint'] ?? 'Cliquez sur une barre pour zoomer.') . '</p>' : '';
     return $out . '</div></div>' . $hint;
 }

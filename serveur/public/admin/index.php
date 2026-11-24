@@ -103,7 +103,7 @@ if ($stuck) { echo '<div class="alert" role="alert"><b>' . $stuck . ' client(s) 
             . '<td class="n">' . h(remaining($t['expires_at'])) . ($t['throttled_at'] ? '<div><span class="tag reduit">2 Mb/s</span></div>' : '') . '</td></tr>';
   }
   echo card('Tickets en cours', $running
-      ? '<div class="scroll"><table><thead><tr><th>Ticket</th><th>Volume utilisé</th><th class="n">Reste</th></tr></thead><tbody>' . $rows . '</tbody></table></div>'
+      ? '<div class="scroll"><table class="cards"><thead><tr><th>Ticket</th><th>Volume utilisé</th><th class="n">Reste</th></tr></thead><tbody>' . $rows . '</tbody></table></div>'
         . '<p class="note" style="margin:10px 0 0"><a href="tickets.php#en-cours">Voir les ' . $nRunning . ' tickets en cours</a></p>'
       : '<div class="chart-empty" style="height:160px">Aucun ticket en cours.</div>', '', 'c5');
   ?>
@@ -117,6 +117,6 @@ foreach ($last as $o) {
           . ($o['ticket_source'] === 'stock' ? ' <span class="note">stock</span>' : '') . '</td></tr>';
 }
 echo '<div class="grid">' . card('Dernières commandes', $rows
-    ? '<div class="scroll"><table><thead><tr><th>Date</th><th>Référence</th><th>Forfait</th><th class="n">Montant</th><th>Opérateur</th><th>État</th></tr></thead><tbody>' . $rows . '</tbody></table></div>'
+    ? '<div class="scroll"><table class="cards"><thead><tr><th>Date</th><th>Référence</th><th>Forfait</th><th class="n">Montant</th><th>Opérateur</th><th>État</th></tr></thead><tbody>' . $rows . '</tbody></table></div>'
     : '<p class="muted">Aucune commande pour l\'instant.</p>', '<a href="ventes.php">Toutes les ventes</a>', 'c12') . '</div>';
 page_end();

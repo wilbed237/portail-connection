@@ -74,7 +74,7 @@ foreach ($sessions as $s) {
     $srows .= '<tr><td>' . ($s['started_at'] ? h(date('d/m H:i', strtotime($s['started_at']))) : '') . '</td><td>' . ($s['active'] ? '<span class="tag ok">en cours</span>' : ($s['ended_at'] ? h(date('d/m H:i', strtotime($s['ended_at']))) : ''))
             . '</td><td class="n">' . gmdate('H:i', (int)$s['uptime_s']) . '</td><td class="n">' . gb_h((float)$s['bytes_down']) . '</td><td class="n">' . gb_h((float)$s['bytes_up']) . '</td><td class="mono">' . h((string)$s['mac']) . '</td></tr>';
 }
-$info .= '<h2 style="margin:20px 0 6px">Sessions</h2><div class="scroll"><table><thead><tr><th>Début</th><th>Fin</th><th class="n">Durée</th><th class="n">Réception</th><th class="n">Envoi</th><th>Appareil</th></tr></thead><tbody>'
+$info .= '<h2 style="margin:20px 0 6px">Sessions</h2><div class="scroll"><table class="cards"><thead><tr><th>Début</th><th>Fin</th><th class="n">Durée</th><th class="n">Réception</th><th class="n">Envoi</th><th>Appareil</th></tr></thead><tbody>'
        . ($srows ?: '<tr><td colspan="6" class="muted">Aucune session relevée.</td></tr>') . '</tbody></table></div>';
 echo card('Ticket ' . $found['username'], $info, '<a href="tickets.php">Fermer</a>', 'c12');
 ?>
@@ -96,7 +96,7 @@ $filter = '<form method="get" class="filters" style="margin:0"><label>Forfait<se
 foreach ($opts as $k => $l) { $filter .= '<option value="' . h($k) . '"' . (($planFilter ?? '') === $k ? ' selected' : '') . '>' . h($l) . '</option>'; }
 $filter .= '</select></label><noscript><button type="submit">Filtrer</button></noscript></form>';
 echo '<div class="grid" id="en-cours">' . card(count($running) . ' tickets en cours · ' . $online . ' connectés', $filter
-    . '<div class="scroll" style="margin-top:12px"><table><thead><tr><th>Ticket</th><th>Forfait</th><th>Volume utilisé</th><th class="n">Aujourd\'hui</th><th>Débit</th><th class="n">Reste</th></tr></thead><tbody>'
+    . '<div class="scroll" style="margin-top:12px"><table class="cards"><thead><tr><th>Ticket</th><th>Forfait</th><th>Volume utilisé</th><th class="n">Aujourd\'hui</th><th>Débit</th><th class="n">Reste</th></tr></thead><tbody>'
     . ($rows ?: '<tr><td colspan="6" class="muted">Aucun ticket en cours.</td></tr>') . '</tbody></table></div>'
     . '<p class="note" style="margin:10px 0 0"><span class="dot"></span>connecté en ce moment · tri par consommation du jour</p>', '', 'c12') . '</div>';
 
@@ -110,7 +110,7 @@ foreach ($stuck as $o) {
 $stockMin = cfg()['stock_min'];
 echo '<div class="grid">'
    . card('Clients payés en attente de ticket', $srows
-        ? '<div class="scroll"><table><thead><tr><th>Payé le</th><th>Référence</th><th>Forfait</th><th>Téléphone</th><th class="n">Essais</th><th>Dernière erreur</th><th></th></tr></thead><tbody>' . $srows . '</tbody></table></div>'
+        ? '<div class="scroll"><table class="cards"><thead><tr><th>Payé le</th><th>Référence</th><th>Forfait</th><th>Téléphone</th><th class="n">Essais</th><th>Dernière erreur</th><th></th></tr></thead><tbody>' . $srows . '</tbody></table></div>'
         : '<p class="muted" style="margin:0"><span class="tag ok">aucun</span> Tous les clients payés ont leur ticket.</p>', '', 'c12')
    . card('Stock de secours', chart_hbars(array_map(fn($s) => ['label' => $s['label'], 'v' => (float)$s['libres'],
         'value' => (int)$s['libres'] . ((int)$s['libres'] < $stockMin ? ' · bas' : ''), 'sub' => (int)$s['libres'] < $stockMin ? 'sous le seuil de ' . $stockMin : null], $stock))

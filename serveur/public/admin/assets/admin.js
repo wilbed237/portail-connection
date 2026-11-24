@@ -21,6 +21,13 @@
   document.addEventListener('focusin', function (e) { var t = target(e); if (t) show(t); else hide(); });
   document.addEventListener('focusout', hide);
   window.addEventListener('scroll', hide, { passive: true });
+  // Tableaux affichés en fiches sur téléphone : chaque cellule reçoit le titre de sa colonne
+  document.querySelectorAll('table.cards').forEach(function (t) {
+    var heads = Array.prototype.map.call(t.querySelectorAll('thead th'), function (th) { return th.textContent.trim(); });
+    t.querySelectorAll('tbody tr').forEach(function (tr) {
+      Array.prototype.forEach.call(tr.children, function (td, i) { if (heads[i] && !td.hasAttribute('colspan')) td.setAttribute('data-label', heads[i]); });
+    });
+  });
   // Listes déroulantes qui appliquent le filtre dès qu'on change la valeur
   document.addEventListener('change', function (e) { if (e.target.matches('select[data-autosubmit]')) e.target.form.submit(); });
 })();
