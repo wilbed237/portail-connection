@@ -4,8 +4,10 @@ require __DIR__ . '/_init.php';
 $me = require_admin();
 
 [$from, $to] = period_from_query();
-$grain = in_array($_GET['par'] ?? '', ['day', 'week', 'month'], true) ? $_GET['par'] : 'day';
-$grainLabel = ['day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois'][$grain];
+// Regroupement : automatique (zoom selon la longueur de la période) ou imposé par ?par=
+$par = in_array($_GET['par'] ?? '', ['hour', 'day', 'week', 'month', 'year'], true) ? $_GET['par'] : '';
+$grain = $par ?: zoom_grain($from, $to);
+$grainLabel = ['hour' => 'Heure', 'day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois', 'year' => 'Année'][$grain];
 $range = "ts >= ?::date AND ts < ?::date + interval '1 day'";
 $args = [$from, $to];
 
@@ -22,7 +24,7 @@ $top = all("SELECT s.username, COALESCE(p.label, '') AS label, sum(s.bytes_down 
 
 $fmtPeriod = function (string $ts) use ($grain): string {
     $t = strtotime($ts);
-    return match ($grain) { 'day' => date('d/m/Y', $t), 'week' => 'Semaine du ' . date('d/m/Y', $t), 'month' => date('m/Y', $t) };
+    return match ($grain) { 'hour' => date('d/m/Y H\\h', $t), 'day' => date('d/m/Y', $t), 'week' => 'Semaine du ' . date('d/m/Y', $t), 'month' => date('m/Y', $t), 'year' => date('Y', $t) };
 };
 
 if (($_GET['export'] ?? '') === 'csv') {
@@ -40,28 +42,38 @@ $users = (int)val("SELECT count(DISTINCT username) FROM usage_samples WHERE $ran
 $down = array_sum(array_column($series, 'down'));
 $days = max(1, min($len, (time() - strtotime($from)) / 86400));
 
-// Série complète (jours sans consommation compris) pour le graphique
-$byKey = [];
-foreach ($series as $r) { $byKey[date('Y-m-d', strtotime($r['periode']))] = $r; }
+// Série complète (tranches sans consommation comprises) pour le graphique ; un clic zoome sur la tranche
+$keep = array_filter(['par' => $par]);
 $items = [];
-if ($grain === 'day') {
-    foreach (days_between($from, $to) as $d) { $r = $byKey[$d] ?? ['down' => 0, 'up' => 0, 'users' => 0];
-        $items[] = ['x' => date('d/m', strtotime($d)), 'vals' => [gb((float)$r['down']), gb((float)$r['up'])], 'tip' => date('d/m/Y', strtotime($d)) . ' · ' . (int)$r['users'] . ' utilisateurs']; }
+if ($grain === 'week') {
+    foreach ($series as $r) { $d = date('Y-m-d', strtotime($r['periode']));
+        $items[] = ['x' => date('d/m', strtotime($d)), 'vals' => [gb((float)$r['down']), gb((float)$r['up'])], 'tip' => $fmtPeriod($r['periode']) . ' · ' . (int)$r['users'] . ' utilisateurs',
+                    'href' => '?' . http_build_query(['du' => max($d, $from), 'au' => min(date('Y-m-d', strtotime("$d +6 days")), $to)])]; }
+} elseif ($grain === 'hour' && $from !== $to) {
+    // Heures imposées sur plusieurs jours : pas de série complète, une colonne par heure ayant des relevés
+    foreach ($series as $r) { $items[] = ['x' => date('d/m H\h', strtotime($r['periode'])), 'vals' => [gb((float)$r['down']), gb((float)$r['up'])], 'tip' => $fmtPeriod($r['periode']) . ' · ' . (int)$r['users'] . ' utilisateurs']; }
 } else {
-    foreach ($series as $r) { $items[] = ['x' => $grain === 'week' ? date('d/m', strtotime($r['periode'])) : date('m/Y', strtotime($r['periode'])),
-        'vals' => [gb((float)$r['down']), gb((float)$r['up'])], 'tip' => $fmtPeriod($r['periode']) . ' · ' . (int)$r['users'] . ' utilisateurs']; }
+    $byKey = [];
+    foreach ($series as $r) { $byKey[$grain === 'hour' ? (int)date('G', strtotime($r['periode'])) : date('Y-m-d', strtotime($r['periode']))] = $r; }
+    $multiYear = substr($from, 0, 4) !== substr($to, 0, 4);
+    foreach (zoom_keys($grain, $from, $to) as $k) {
+        $r = $byKey[$k] ?? ['down' => 0, 'up' => 0, 'users' => 0];
+        $items[] = array_filter(['x' => zoom_label($grain, $k, false, $multiYear), 'vals' => [gb((float)$r['down']), gb((float)$r['up'])],
+                    'tip' => zoom_label($grain, $k, true) . ' · ' . (int)$r['users'] . ' utilisateurs', 'href' => zoom_href($grain, $k, $from, $to)], fn($v) => $v !== null);
+    }
 }
+$since = val("SELECT min(ts)::date FROM usage_samples");
 $peakDay = null; $peakHour = null; $pv = 0;
 foreach ($heat as $d => $hs) { foreach ($hs as $hh => $v) { if ($v > $pv) { $pv = $v; $peakDay = $d; $peakHour = $hh; } } }
 $jours = [1 => 'lundi', 2 => 'mardi', 3 => 'mercredi', 4 => 'jeudi', 5 => 'vendredi', 6 => 'samedi', 7 => 'dimanche'];
 
-$keep = ['par' => $grain];
 $extra = '<label>Regrouper par<select name="par">';
-foreach (['day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois'] as $k => $l) { $extra .= '<option value="' . $k . '"' . ($grain === $k ? ' selected' : '') . '>' . $l . '</option>'; }
+foreach (['' => 'Automatique', 'hour' => 'Heure', 'day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois', 'year' => 'Année'] as $k => $l) { $extra .= '<option value="' . $k . '"' . ($par === $k ? ' selected' : '') . '>' . $l . '</option>'; }
 $extra .= '</select></label>';
 
 page_start('Consommation', $me, 'conso.php', 'Données consommées ' . h(period_label($from, $to)));
 echo period_bar($from, $to, $extra, $keep);
+echo zoom_nav($from, $to, $keep, $since ?: null);
 ?>
 <div class="tiles">
   <?= stat_tile('Données consommées', gb_h($total), [pct_change($total, (float)$prev['b']), 'période précédente']) ?>
@@ -72,7 +84,7 @@ echo period_bar($from, $to, $extra, $keep);
 
 <div class="grid">
   <?= card('Consommation par ' . strtolower($grainLabel), chart_stacked($items, [['name' => 'Réception', 'color' => 'var(--s1)'], ['name' => 'Envoi', 'color' => 'var(--s2)']],
-        ['fmt' => fn($v) => go_h($v), 'axis' => fn($v) => num_short($v) . ' Go', 'every' => max(1, (int)ceil(count($items) / 10))])
+        ['fmt' => fn($v) => go_h($v), 'axis' => fn($v) => num_short($v) . ' Go', 'every' => max(1, (int)ceil(count($items) / 12))])
         . data_table([$grainLabel, 'Réception', 'Envoi', 'Total', 'Utilisateurs'], array_map(fn($r) => [$fmtPeriod($r['periode']), gb_h((float)$r['down']), gb_h((float)$r['up']), gb_h($r['down'] + $r['up']), (int)$r['users']], $series)),
         '<a class="btn secondary" href="?' . h(http_build_query(array_merge($_GET, ['export' => 'csv']))) . '">Exporter en CSV</a>', 'c12') ?>
 </div>

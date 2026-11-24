@@ -32,7 +32,7 @@ foreach (all("SELECT to_char(paid_at, 'YYYY-MM') AS m, count(*) AS n, sum(amount
 }
 $moisFr = ['01' => 'janv.', '02' => 'févr.', '03' => 'mars', '04' => 'avr.', '05' => 'mai', '06' => 'juin', '07' => 'juil.', '08' => 'août', '09' => 'sept.', '10' => 'oct.', '11' => 'nov.', '12' => 'déc.'];
 $mLabel = fn(string $m) => $moisFr[substr($m, 5, 2)] . ' ' . substr($m, 0, 4);
-$mItems = array_map(fn($m, $v) => ['x' => $moisFr[substr($m, 5, 2)], 'vals' => [$v['ca'] - $v['frais'], $v['frais']], 'tip' => $mLabel($m) . ' · ' . $v['n'] . ' ventes'],
+$mItems = array_map(fn($m, $v) => ['x' => $moisFr[substr($m, 5, 2)], 'vals' => [$v['ca'] - $v['frais'], $v['frais']], 'tip' => $mLabel($m) . ' · ' . $v['n'] . ' ventes', 'href' => '?mois=' . $m],
     array_keys($months), $months);
 
 // Jours du mois choisi
@@ -40,7 +40,7 @@ $perDay = [];
 foreach ($byDay as $d) { $perDay[$d['jour']] = $d; }
 $end = min(date('Y-m-t', strtotime($start)), date('Y-m-d'));
 $dItems = $start <= date('Y-m-d') ? array_map(fn($d) => ['x' => date('d', strtotime($d)), 'v' => (float)($perDay[$d]['ca'] ?? 0),
-    'tip' => date('d/m/Y', strtotime($d)) . ' · ' . (int)($perDay[$d]['n'] ?? 0) . ' ventes'], days_between($start, $end)) : [];
+    'tip' => date('d/m/Y', strtotime($d)) . ' · ' . (int)($perDay[$d]['n'] ?? 0) . ' ventes', 'href' => 'ventes.php?du=' . $d . '&au=' . $d], days_between($start, $end)) : [];
 
 // Solde du compte marchand, lu en direct (lecture limitée : 120 par minute chez IZI Spot)
 $bal = pay_api('GET', '/v1/balance');
@@ -64,7 +64,7 @@ page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) .
 
 <div class="grid">
   <?= card('Net et frais, 12 derniers mois', chart_stacked($mItems, [['name' => 'Net crédité', 'color' => 'var(--s1)'], ['name' => 'Frais IZI Spot', 'color' => 'var(--s2)']],
-        ['fmt' => fn($v) => fcfa($v), 'every' => 1])
+        ['fmt' => fn($v) => fcfa($v), 'every' => 1, 'hint' => 'Cliquez sur un mois pour afficher sa comptabilité.'])
         . data_table(['Mois', "Chiffre d'affaires", 'Frais', 'Net', 'Ventes'], array_map(fn($m, $v) => [$mLabel($m), fcfa($v['ca']), fcfa($v['frais']), fcfa($v['ca'] - $v['frais']), $v['n']], array_keys($months), $months)),
         '', 'c7') ?>
   <?php
@@ -81,7 +81,7 @@ page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) .
 </div>
 
 <div class="grid">
-  <?= card("Chiffre d'affaires par jour", chart_columns($dItems, ['fmt' => fn($v) => fcfa($v), 'every' => 3, 'height' => 180, 'empty' => 'Aucune vente ce mois-ci.'])
+  <?= card("Chiffre d'affaires par jour", chart_columns($dItems, ['fmt' => fn($v) => fcfa($v), 'every' => 3, 'height' => 180, 'empty' => 'Aucune vente ce mois-ci.', 'hint' => 'Cliquez sur un jour pour voir le détail de ses ventes.'])
         . data_table(['Jour', 'Ventes', "Chiffre d'affaires", 'Frais', 'Net'], array_map(fn($d) => [date('d/m/Y', strtotime($d['jour'])), (int)$d['n'], fcfa($d['ca']), fcfa($d['frais']), fcfa($d['ca'] - $d['frais'])], $byDay)),
         '', 'c12') ?>
 </div>
@@ -89,7 +89,7 @@ page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) .
 <div class="grid">
   <?= card('Par forfait', chart_hbars(array_map(fn($r) => ['label' => $r['label'], 'v' => (float)$r['ca'], 'value' => fcfa_short((float)$r['ca']),
         'sub' => (int)$r['n'] . ' ventes · ' . ($tot['ca'] ? round($r['ca'] * 100 / $tot['ca']) : 0) . ' % · net ' . fcfa_short($r['ca'] - $r['frais'])], $byPlan), ['empty' => 'Aucune vente ce mois-ci.']), '', 'c7') ?>
-  <?= card('Par opérateur', chart_hbars(array_map(fn($r) => ['label' => $r['operator'] === 'mtn' ? 'MTN Mobile Money' : 'Orange Money', 'v' => (float)$r['ca'],
+  <?= card('Par opérateur', chart_hbars(array_map(fn($r) => ['label' => $r['operator'] === 'mtn' ? 'MTN Mobile Money' : 'Orange Money', 'color' => $r['operator'] === 'mtn' ? 'var(--mtn)' : 'var(--orange)', 'v' => (float)$r['ca'],
         'value' => fcfa_short((float)$r['ca']), 'sub' => (int)$r['n'] . ' ventes · ' . ($tot['ca'] ? round($r['ca'] * 100 / $tot['ca']) : 0) . ' %'], $byOp), ['empty' => 'Aucune vente ce mois-ci.']), '', 'c5') ?>
 </div>
 <?php page_end();

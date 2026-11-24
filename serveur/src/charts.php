@@ -3,7 +3,7 @@
  * Graphiques de l'espace admin, rendus côté serveur en HTML/CSS (aucune bibliothèque externe,
  * compatibles avec la politique de sécurité stricte des pages). L'infobulle (survol et clavier)
  * est ajoutée par public/admin/assets/admin.js à partir des attributs data-tip.
- * Couleurs : rôles CSS (--s1 bleu, --s2 orange…, --seq-*) définis dans admin_css().
+ * Couleurs : rôles CSS (--s1 bleu, --s2 orange…, --mtn jaune, --orange orange, --seq-*) définis dans admin_css().
  */
 
 declare(strict_types=1);
@@ -42,7 +42,7 @@ function tip_attrs(string $value, string $label): string {
 }
 
 /*
- * Colonnes (une série) : $items = [['x' => libellé court, 'v' => valeur, 'tip' => libellé infobulle, 'hl' => bool]]
+ * Colonnes (une série) : $items = [['x' => libellé court, 'v' => valeur, 'tip' => libellé infobulle, 'hl' => bool, 'href' => lien du zoom]]
  * $o : fmt (valeur → texte), axis (valeur → texte court), every (1 libellé sur n), height, empty (message)
  */
 function chart_columns(array $items, array $o = []): string {
@@ -62,15 +62,19 @@ function chart_columns(array $items, array $o = []): string {
     foreach ($items as $k => $i) {
         $pct = max(0, (float)$i['v']) / $top * 100;
         $cls = !empty($i['hl']) ? ' hl' : '';
-        $out .= '<div class="col' . $cls . '"' . tip_attrs($fmt($i['v']), $i['tip'] ?? $i['x']) . '><b style="height:' . round($pct, 3) . '%"></b></div>';
+        $tag = isset($i['href']) ? 'a' : 'div';
+        $out .= '<' . $tag . ' class="col' . $cls . '"' . (isset($i['href']) ? ' href="' . h($i['href']) . '"' : '')
+              . tip_attrs($fmt($i['v']), $i['tip'] ?? $i['x']) . '><b style="height:' . round($pct, 3) . '%"></b></' . $tag . '>';
     }
     $out .= '</div></div><div class="xaxis" style="--n:' . count($items) . '">';
     foreach ($items as $k => $i) { $out .= '<span>' . ($k % $every === 0 || $k === count($items) - 1 && $every === 1 ? h($i['x']) : '') . '</span>'; }
-    return $out . '</div></div>';
+    $hint = array_filter($items, fn($i) => isset($i['href'])) ? '<p class="chart-hint">' . h($o['hint'] ?? 'Cliquez sur une barre pour zoomer.') . '</p>' : '';
+    return $out . '</div></div>' . $hint;
 }
 
 /*
- * Colonnes empilées : $series = [['name' => …, 'color' => 'var(--s1)']], $items = [['x', 'vals' => [v1, v2…], 'tip']]
+ * Colonnes empilées : $series = [['name' => …, 'color' => 'var(--s1)']], $items = [['x', 'vals' => [v1, v2…], 'tip', 'href']]
+ * Avec 'href', la colonne devient un lien (clic ou Entrée).
  * Légende toujours affichée (au moins deux séries).
  */
 function chart_stacked(array $items, array $series, array $o = []): string {
@@ -94,16 +98,19 @@ function chart_stacked(array $items, array $series, array $o = []): string {
     foreach ($items as $k => $i) {
         $tip = [];
         foreach ($series as $j => $s) { $tip[] = $s['name'] . ' : ' . $fmt($i['vals'][$j] ?? 0); }
-        $out .= '<div class="col stack"' . tip_attrs($fmt($tot[$k]), ($i['tip'] ?? $i['x']) . "\n" . implode("\n", $tip)) . '><div class="st" style="height:' . round($tot[$k] / $top * 100, 3) . '%">';
+        $tag = isset($i['href']) ? 'a' : 'div';
+        $out .= '<' . $tag . ' class="col stack"' . (isset($i['href']) ? ' href="' . h($i['href']) . '"' : '')
+              . tip_attrs($fmt($tot[$k]), ($i['tip'] ?? $i['x']) . "\n" . implode("\n", $tip)) . '><div class="st" style="height:' . round($tot[$k] / $top * 100, 3) . '%">';
         foreach (array_reverse($series, true) as $j => $s) {
             $v = (float)($i['vals'][$j] ?? 0);
             if ($v > 0) { $out .= '<b style="flex-grow:' . round($v, 2) . ';background:' . $s['color'] . '"></b>'; }
         }
-        $out .= '</div></div>';
+        $out .= '</div></' . $tag . '>';
     }
     $out .= '</div></div><div class="xaxis" style="--n:' . count($items) . '">';
     foreach ($items as $k => $i) { $out .= '<span>' . ($k % $every === 0 ? h($i['x']) : '') . '</span>'; }
-    return $out . '</div></div>';
+    $hint = array_filter($items, fn($i) => isset($i['href'])) ? '<p class="chart-hint">' . h($o['hint'] ?? 'Cliquez sur une barre pour zoomer.') . '</p>' : '';
+    return $out . '</div></div>' . $hint;
 }
 
 /*
@@ -117,7 +124,7 @@ function chart_hbars(array $rows, array $o = []): string {
         $label = isset($r['href']) ? '<a href="' . h($r['href']) . '">' . h($r['label']) . '</a>' : h($r['label']);
         $out .= '<div class="hb"' . tip_attrs($r['value'], $r['label'] . (isset($r['sub']) ? ' · ' . $r['sub'] : '')) . '>'
               . '<div class="hb-l">' . $label . (isset($r['sub']) ? '<small>' . h($r['sub']) . '</small>' : '') . '</div>'
-              . '<div class="hb-t"><b style="width:' . round(max(0, (float)$r['v']) / $max * 100, 2) . '%"></b></div>'
+              . '<div class="hb-t"><b style="width:' . round(max(0, (float)$r['v']) / $max * 100, 2) . '%' . (isset($r['color']) ? ';background:' . $r['color'] : '') . '"></b></div>'
               . '<div class="hb-v">' . h($r['value']) . '</div></div>';
     }
     return $out . '</div>';

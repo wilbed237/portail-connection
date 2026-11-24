@@ -19,8 +19,8 @@ function page_start(string $title, array $me, string $active, string $subtitle =
     header('Referrer-Policy: same-origin');
     header('Cache-Control: no-store');
     echo '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<title>' . h($title) . ' · GANDAL admin</title><style>' . admin_css() . '</style>';
-    echo '<script src="assets/admin.js" defer></script></head><body><div class="shell"><aside class="side"><div class="brand"><span class="logo">G</span>GANDAL<small>admin</small></div><nav>';
+    echo '<title>' . h($title) . ' · GANDAL admin</title><link rel="icon" href="assets/logo-emblem.png"><style>' . admin_css() . '</style>';
+    echo '<script src="assets/admin.js" defer></script></head><body><div class="shell"><aside class="side"><div class="brand"><img class="logo" src="assets/logo-emblem.png" alt="" width="32" height="32">GANDAL<small>admin</small></div><nav>';
     foreach (ADMIN_NAV as $href => [$label, $icon]) {
         echo '<a href="' . $href . '"' . ($href === $active ? ' aria-current="page"' : '') . '><svg viewBox="0 0 24 24" aria-hidden="true">' . $icon . '</svg><span>' . $label . '</span></a>';
     }
@@ -52,12 +52,14 @@ function admin_css(): string {
 --page:#f4f4f1;--card:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#6f6d68;--line:rgba(11,11,11,.10);--grid:#e1e0d9;--axis:#c3c2b7;--hover:rgba(11,11,11,.04);
 --brand:#16243a;--brand-ink:#e9eef5;--accent:#2a78d6;--accent-ink:#fff;
 --s1:#2a78d6;--s2:#eb6834;--s3:#1baf7a;
+--mtn:#f5c400;--orange:#ff7900;
 --q1:#cde2fb;--q2:#9ec5f4;--q3:#6da7ec;--q4:#3987e5;--q5:#256abf;--q6:#184f95;--track:#e6effb;
 --good:#0ca30c;--good-ink:#006300;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;--crit-ink:#b42318;--warn-ink:#8a5a00}
 @media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){color-scheme:dark;
 --page:#0d0d0d;--card:#1a1a19;--ink:#f0efec;--ink2:#c3c2b7;--muted:#9a988f;--line:rgba(255,255,255,.10);--grid:#2c2c2a;--axis:#383835;--hover:rgba(255,255,255,.05);
 --brand:#121212;--brand-ink:#d7d6d0;--accent:#3987e5;
 --s1:#3987e5;--s2:#d95926;--s3:#199e70;
+--mtn:#ffcc00;--orange:#ff7900;
 --q1:#123a6e;--q2:#184f95;--q3:#256abf;--q4:#3987e5;--q5:#6da7ec;--q6:#9ec5f4;--track:#14284a;
 --good-ink:#0ca30c;--crit-ink:#e66767;--warn-ink:#fab219}}
 *{box-sizing:border-box}html,body{margin:0}
@@ -67,7 +69,7 @@ a{color:var(--accent)}
 .side{background:var(--brand);color:var(--brand-ink);display:flex;flex-direction:column;position:sticky;top:0;height:100vh;padding:18px 12px}
 .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.06em;padding:0 8px 18px;font-size:15px}
 .brand small{font-weight:500;letter-spacing:0;opacity:.6;font-size:12px}
-.logo{width:30px;height:30px;border-radius:8px;background:#2a78d6;color:#fff;display:grid;place-items:center;font-size:15px}
+.logo{width:32px;height:32px;border-radius:8px;background:#fff;padding:2px;object-fit:contain;flex-shrink:0;display:block}
 .side nav{display:flex;flex-direction:column;gap:2px;flex:1}
 .side nav a{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:8px;color:var(--brand-ink);text-decoration:none;opacity:.78}
 .side nav a:hover{background:rgba(255,255,255,.06);opacity:1}
@@ -106,6 +108,13 @@ h2{font-size:15px;margin:0;font-weight:600}
 .col:not(.hl)>b{opacity:.92}
 .col:hover>b,.col:focus-visible>b,.col:hover .st,.col:focus-visible .st{filter:brightness(1.12)}
 .col:focus-visible{background:var(--hover)}
+a.col{cursor:pointer;text-decoration:none}a.col:hover{background:var(--hover)}
+.zoomnav{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 16px;margin:-6px 0 16px;font-size:14px}
+.zn-crumbs{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;color:var(--ink2)}.zn-crumbs b{color:var(--ink)}
+.zn-sep{color:var(--muted)}.zoomnav a{color:var(--accent);text-decoration:none}.zoomnav a:hover{text-decoration:underline}
+.zn-arrows{display:flex;gap:6px}.zn-arrow{padding:4px 10px;border:1px solid var(--line);border-radius:7px;background:var(--card);font-size:13px}
+.zn-arrow[aria-disabled]{color:var(--muted);opacity:.6}
+.chart-hint{font-size:12px;color:var(--muted);margin:6px 0 0}
 .col.stack .st{width:100%;max-width:24px;display:flex;flex-direction:column;gap:2px;border-radius:4px 4px 0 0;overflow:hidden}
 .col.stack .st b{display:block;min-height:1px;flex-basis:0}
 .xaxis{grid-column:2;display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));padding-top:6px}
@@ -187,14 +196,14 @@ function tag(string $status): string {
 }
 
 /* Périodes prédéfinies (?p=) ou personnalisée (?du=&au=), par défaut les 30 derniers jours */
-const PERIODS = ['auj' => "Aujourd'hui", '7j' => '7 jours', '30j' => '30 jours', '90j' => '90 jours', 'mois' => 'Ce mois'];
+const PERIODS = ['auj' => "Aujourd'hui", '7j' => '7 jours', '30j' => '30 jours', '90j' => '90 jours', 'mois' => 'Ce mois', 'an' => 'Cette année'];
 function period_from_query(): array {
     $p = $_GET['p'] ?? '';
     $today = date('Y-m-d');
     if (isset(PERIODS[$p])) {
         return match ($p) {
             'auj' => [$today, $today], '7j' => [date('Y-m-d', strtotime('-6 days')), $today],
-            '90j' => [date('Y-m-d', strtotime('-89 days')), $today], 'mois' => [date('Y-m-01'), $today],
+            '90j' => [date('Y-m-d', strtotime('-89 days')), $today], 'mois' => [date('Y-m-01'), $today], 'an' => [date('Y-01-01'), $today],
             default => [date('Y-m-d', strtotime('-29 days')), $today],
         };
     }
@@ -221,6 +230,100 @@ function period_bar(string $from, string $to, string $extra = '', array $keep = 
 function period_label(string $from, string $to): string {
     $f = fn($d) => date('d/m/Y', strtotime($d));
     return $from === $to ? 'le ' . $f($from) : 'du ' . $f($from) . ' au ' . $f($to);
+}
+
+/*
+ * Zoom des graphiques temporels. Le grain dépend de la longueur de la période :
+ * 1 jour → heures, jusqu'à 62 jours → jours, jusqu'à 2 ans → mois, au-delà → années.
+ * Clés des tranches : 0..23 (heure), 'Y-m-d' (jour), 'Y-m-01' (mois), 'Y-01-01' (année).
+ * Un clic sur une tranche ouvre la période qu'elle couvre (zoom_href), zoom_nav permet de remonter.
+ */
+const MOIS_FR = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+const JOURS_FR = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+function zoom_grain(string $from, string $to): string {
+    $len = (strtotime($to) - strtotime($from)) / 86400 + 1;
+    return $len <= 1 ? 'hour' : ($len <= 62 ? 'day' : ($len <= 731 ? 'month' : 'year'));
+}
+/* Expression SQL donnant la clé de tranche d'une colonne horodatée */
+function zoom_sql(string $grain, string $col): string {
+    return match ($grain) {
+        'hour' => "extract(hour FROM $col)::int",
+        'day' => "to_char($col, 'YYYY-MM-DD')",
+        'month' => "to_char($col, 'YYYY-MM-01')",
+        default => "to_char($col, 'YYYY-01-01')",
+    };
+}
+/* Toutes les tranches de la période, pour des séries sans trou */
+function zoom_keys(string $grain, string $from, string $to): array {
+    if ($grain === 'hour') { return range(0, 23); }
+    if ($grain === 'day') { return days_between($from, $to); }
+    $out = [];
+    $step = $grain === 'month' ? '+1 month' : '+1 year';
+    $t = strtotime($grain === 'month' ? substr($from, 0, 7) . '-01' : substr($from, 0, 4) . '-01-01');
+    for (; $t <= strtotime($to); $t = strtotime($step, $t)) { $out[] = date('Y-m-d', $t); }
+    return $out;
+}
+/* Libellés d'une tranche : court (axe) et complet (infobulle) */
+function zoom_label(string $grain, int|string $k, bool $long = false, bool $withYear = false): string {
+    if ($grain === 'hour') { return $long ? sprintf('%d h – %d h', $k, $k + 1) : $k . 'h'; }
+    $t = strtotime((string)$k);
+    return match ($grain) {
+        'day' => $long ? ucfirst(JOURS_FR[(int)date('w', $t)]) . ' ' . date('d/m/Y', $t) : date('d/m', $t),
+        'month' => $long ? ucfirst(MOIS_FR[(int)date('n', $t) - 1]) . ' ' . date('Y', $t)
+                         : MOIS_COURT[(int)date('n', $t) - 1] . ($withYear ? ' ' . date('y', $t) : ''),
+        default => date('Y', $t),
+    };
+}
+/* Période couverte par une tranche (bornée à la période affichée), null pour une heure */
+function zoom_range(string $grain, int|string $k, string $from, string $to): ?array {
+    if ($grain === 'hour') { return null; }
+    $end = match ($grain) { 'day' => (string)$k, 'month' => date('Y-m-t', strtotime((string)$k)), default => substr((string)$k, 0, 4) . '-12-31' };
+    return [max((string)$k, $from), min($end, $to)];
+}
+function zoom_href(string $grain, int|string $k, string $from, string $to, array $keep = [], string $page = ''): ?string {
+    $r = zoom_range($grain, $k, $from, $to);
+    return $r ? $page . '?' . http_build_query(['du' => $r[0], 'au' => $r[1]] + $keep) : null;
+}
+
+/*
+ * Navigation du zoom : période précédente / suivante et remontée (jour → mois → année → toutes les années).
+ * $since : première date ayant des données, pour « Toutes les années ».
+ */
+function zoom_nav(string $from, string $to, array $keep = [], ?string $since = null): string {
+    $today = date('Y-m-d');
+    $link = fn(string $f, string $t, string $label, string $cls = '') => '<a' . ($cls ? ' class="' . $cls . '"' : '') . ' href="?' . h(http_build_query(['du' => $f, 'au' => min($t, $today)] + $keep)) . '">' . $label . '</a>';
+    $tf = strtotime($from);
+    $isDay = $from === $to;
+    $isMonth = !$isDay && $from === date('Y-m-01', $tf) && ($to === date('Y-m-t', $tf) || $to === $today && substr($to, 0, 7) === substr($from, 0, 7));
+    $isYear = !$isDay && !$isMonth && $from === date('Y-01-01', $tf) && ($to === date('Y-12-31', $tf) || $to === $today && substr($to, 0, 4) === substr($from, 0, 4));
+    $y = date('Y', strtotime($to)); $m = date('Y-m-01', strtotime($to));
+    $crumbs = [];
+    if ($since) { $crumbs[] = $link(substr($since, 0, 4) . '-01-01', $today, 'Toutes les années'); }
+    if ($isYear) { $crumbs[] = '<b>' . $y . '</b>'; }
+    elseif ($isMonth || $isDay) {
+        $crumbs[] = $link("$y-01-01", "$y-12-31", $y);
+        $crumbs[] = $isMonth ? '<b>' . h(MOIS_FR[(int)date('n', $tf) - 1]) . '</b>' : $link($m, date('Y-m-t', strtotime($m)), h(MOIS_FR[(int)date('n', $tf) - 1]));
+        if ($isDay) { $crumbs[] = '<b>' . h(JOURS_FR[(int)date('w', $tf)] . ' ' . date('j', $tf)) . '</b>'; }
+    } else {
+        $crumbs[] = $link("$y-01-01", "$y-12-31", $y);
+        $crumbs[] = $link($m, date('Y-m-t', strtotime($m)), h(MOIS_FR[(int)date('n', strtotime($m)) - 1]));
+    }
+    $arrows = '';
+    if ($isDay || $isMonth || $isYear) {
+        $unit = $isDay ? 'day' : ($isMonth ? 'month' : 'year');
+        $shift = function (int $n) use ($unit, $tf) {
+            $t = strtotime(($n > 0 ? '+' : '') . $n . ' ' . $unit, $tf);
+            return match ($unit) { 'day' => [date('Y-m-d', $t), date('Y-m-d', $t)], 'month' => [date('Y-m-01', $t), date('Y-m-t', $t)], default => [date('Y-01-01', $t), date('Y-12-31', $t)] };
+        };
+        $names = ['day' => ['Jour précédent', 'Jour suivant'], 'month' => ['Mois précédent', 'Mois suivant'], 'year' => ['Année précédente', 'Année suivante']][$unit];
+        [$pf, $pt] = $shift(-1); [$nf, $nt] = $shift(1);
+        $arrows = $link($pf, $pt, '‹ ' . $names[0], 'zn-arrow')
+                . ($nf <= $today ? $link($nf, $nt, $names[1] . ' ›', 'zn-arrow') : '<span class="zn-arrow" aria-disabled="true">' . $names[1] . ' ›</span>');
+    }
+    return '<nav class="zoomnav" aria-label="Zoom sur la période"><span class="zn-crumbs">' . implode('<span class="zn-sep">›</span>', $crumbs) . '</span>'
+         . ($arrows ? '<span class="zn-arrows">' . $arrows . '</span>' : '') . '</nav>';
 }
 
 /* Jours d'une période, pour des séries sans trou */

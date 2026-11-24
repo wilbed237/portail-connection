@@ -147,7 +147,8 @@ et s'arrête à 100 lectures par minute.
 | Ventes du jour, de la semaine, du mois, état du routeur, alertes | `/admin/` |
 | Journal des ventes filtrable, export CSV | `/admin/ventes.php` |
 | Comptabilité mensuelle : chiffre d'affaires, frais estimés, net, par forfait, opérateur et jour | `/admin/compta.php` |
-| Consommation par jour, semaine ou mois, par forfait, heures de pointe | `/admin/conso.php` |
+| Consommation par heure, jour, semaine, mois ou année, par forfait, heures de pointe | `/admin/conso.php` |
+| Zoom : un clic sur une barre d'un graphique ouvre la période qu'elle couvre (année → mois → jour → heures) | toutes les pages |
 | Retrouver un ticket, ses sessions, relancer un client payé sans ticket, stock de secours | `/admin/tickets.php` |
 | Graphiques (période libre, regroupement jour / semaine / mois) | `/grafana/` |
 

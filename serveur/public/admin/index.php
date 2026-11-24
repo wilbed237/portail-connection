@@ -18,7 +18,7 @@ $rev = [];
 foreach (all("SELECT paid_at::date AS d, count(*) AS n, sum(amount) AS ca FROM orders WHERE status IN " . PAID_STATUSES . "
               AND paid_at >= current_date - 29 GROUP BY 1") as $r) { $rev[$r['d']] = $r; }
 $revItems = array_map(fn($d) => ['x' => date('d/m', strtotime($d)), 'v' => (float)($rev[$d]['ca'] ?? 0),
-    'tip' => strftime_fr($d) . ' · ' . (int)($rev[$d]['n'] ?? 0) . ' ventes', 'hl' => $d === date('Y-m-d')], $days);
+    'tip' => strftime_fr($d) . ' · ' . (int)($rev[$d]['n'] ?? 0) . ' ventes', 'hl' => $d === date('Y-m-d'), 'href' => 'ventes.php?du=' . $d . '&au=' . $d], $days);
 $rev30 = array_sum(array_column($revItems, 'v'));
 $sparkRev = array_slice(array_column($revItems, 'v'), -14);
 
@@ -81,7 +81,7 @@ if ($stuck) { echo '<div class="alert" role="alert"><b>' . $stuck . ' client(s) 
 </div>
 
 <div class="grid">
-  <?= card('Recettes des 30 derniers jours', chart_columns($revItems, ['fmt' => fn($v) => fcfa($v), 'axis' => fn($v) => num_short($v), 'every' => 5])
+  <?= card('Recettes des 30 derniers jours', chart_columns($revItems, ['fmt' => fn($v) => fcfa($v), 'axis' => fn($v) => num_short($v), 'every' => 5, 'hint' => 'Cliquez sur un jour pour voir le détail de ses ventes.'])
         . data_table(['Jour', 'Ventes', 'Recettes (FCFA)'], array_map(fn($d) => [date('d/m/Y', strtotime($d)), (int)($rev[$d]['n'] ?? 0), (int)($rev[$d]['ca'] ?? 0)], $days)),
         'Total <b>' . h(fcfa($rev30)) . '</b> · moyenne <b>' . h(fcfa($rev30 / 30)) . '</b> / jour', 'c8') ?>
   <?= card('Forfaits les plus vendus',
@@ -93,7 +93,7 @@ if ($stuck) { echo '<div class="alert" role="alert"><b>' . $stuck . ' client(s) 
 
 <div class="grid">
   <?= card("Consommation d'aujourd'hui, heure par heure", chart_columns($hourItems, ['fmt' => fn($v) => go_h($v), 'axis' => fn($v) => num_short($v) . ' Go', 'every' => 3, 'height' => 180]),
-        'Total <b>' . h(gb_h($gbToday)) . '</b>', 'c7') ?>
+        'Total <b>' . h(gb_h($gbToday)) . '</b> · <a href="conso.php?p=auj">détail</a>', 'c7') ?>
   <?php
   $rows = '';
   foreach ($running as $t) {
