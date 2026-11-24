@@ -10,7 +10,9 @@ $base = "FROM orders o JOIN plans p ON p.id = o.plan_id
 $args = [$start, $start];
 
 $tot = one("SELECT count(*) AS n, COALESCE(sum(o.amount),0) AS ca, COALESCE(sum(o.fee),0) AS frais $base", $args);
-$byPlan = all("SELECT p.label, count(*) AS n, sum(o.amount) AS ca, sum(o.fee) AS frais $base GROUP BY p.label, p.price ORDER BY p.price", $args);
+$prevStart = date('Y-m-01', strtotime($start . ' -1 month'));
+$prev = one("SELECT count(*) AS n, COALESCE(sum(o.amount),0) AS ca, COALESCE(sum(o.fee),0) AS frais $base", [$prevStart, $prevStart]);
+$byPlan = all("SELECT p.label, count(*) AS n, sum(o.amount) AS ca, sum(o.fee) AS frais $base GROUP BY p.label, p.price ORDER BY 3 DESC", $args);
 $byOp = all("SELECT o.operator, count(*) AS n, sum(o.amount) AS ca $base GROUP BY o.operator ORDER BY o.operator", $args);
 $byDay = all("SELECT date_trunc('day', o.paid_at)::date AS jour, count(*) AS n, sum(o.amount) AS ca, sum(o.fee) AS frais
               $base GROUP BY 1 ORDER BY 1", $args);
@@ -21,52 +23,73 @@ if (($_GET['export'] ?? '') === 'csv') {
         array_map(fn($d) => [$d['jour'], $d['n'], $d['ca'], $d['frais'], $d['ca'] - $d['frais']], $byDay));
 }
 
+// 12 derniers mois : net crédité et frais (le total des deux = chiffre d'affaires)
+$months = [];
+for ($i = 11; $i >= 0; $i--) { $months[date('Y-m', strtotime($start . " -$i month"))] = ['ca' => 0, 'frais' => 0, 'n' => 0]; }
+foreach (all("SELECT to_char(paid_at, 'YYYY-MM') AS m, count(*) AS n, sum(amount) AS ca, sum(fee) AS frais FROM orders
+              WHERE status IN " . PAID_STATUSES . " AND paid_at >= ?::date - interval '11 months' AND paid_at < ?::date + interval '1 month' GROUP BY 1", $args) as $r) {
+    if (isset($months[$r['m']])) { $months[$r['m']] = ['ca' => (float)$r['ca'], 'frais' => (float)$r['frais'], 'n' => (int)$r['n']]; }
+}
+$moisFr = ['01' => 'janv.', '02' => 'févr.', '03' => 'mars', '04' => 'avr.', '05' => 'mai', '06' => 'juin', '07' => 'juil.', '08' => 'août', '09' => 'sept.', '10' => 'oct.', '11' => 'nov.', '12' => 'déc.'];
+$mLabel = fn(string $m) => $moisFr[substr($m, 5, 2)] . ' ' . substr($m, 0, 4);
+$mItems = array_map(fn($m, $v) => ['x' => $moisFr[substr($m, 5, 2)], 'vals' => [$v['ca'] - $v['frais'], $v['frais']], 'tip' => $mLabel($m) . ' · ' . $v['n'] . ' ventes'],
+    array_keys($months), $months);
+
+// Jours du mois choisi
+$perDay = [];
+foreach ($byDay as $d) { $perDay[$d['jour']] = $d; }
+$end = min(date('Y-m-t', strtotime($start)), date('Y-m-d'));
+$dItems = $start <= date('Y-m-d') ? array_map(fn($d) => ['x' => date('d', strtotime($d)), 'v' => (float)($perDay[$d]['ca'] ?? 0),
+    'tip' => date('d/m/Y', strtotime($d)) . ' · ' . (int)($perDay[$d]['n'] ?? 0) . ' ventes'], days_between($start, $end)) : [];
+
 // Solde du compte marchand, lu en direct (lecture limitée : 120 par minute chez IZI Spot)
 $bal = pay_api('GET', '/v1/balance');
 $balance = $bal['code'] === 200 && is_array($bal['data']) ? $bal['data'] : null;
 
-page_start('Comptabilité', $me, 'compta.php');
+page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) . ' · frais IZI Spot de 7 % déduits à chaque paiement');
 ?>
 <form class="filters" method="get">
-  <label>Mois<input type="month" name="mois" value="<?= h($month) ?>"></label>
+  <?= seg('mois', [date('Y-m', strtotime($start . ' -1 month')) => '← ' . $mLabel(date('Y-m', strtotime($start . ' -1 month'))), date('Y-m') => 'Mois en cours'], $month) ?>
+  <label>Mois<input type="month" name="mois" value="<?= h($month) ?>" max="<?= date('Y-m') ?>"></label>
   <button type="submit">Afficher</button>
   <a class="btn secondary" href="?mois=<?= h($month) ?>&amp;export=csv">Exporter le mois en CSV</a>
 </form>
 
-<div class="kpis">
-  <div class="kpi"><span>Chiffre d'affaires</span><b><?= fcfa($tot['ca']) ?></b></div>
-  <div class="kpi"><span>Frais IZI Spot (7 %)</span><b><?= fcfa($tot['frais']) ?></b></div>
-  <div class="kpi"><span>Net crédité</span><b><?= fcfa($tot['ca'] - $tot['frais']) ?></b></div>
-  <div class="kpi"><span>Ventes</span><b><?= (int)$tot['n'] ?></b><div class="note">panier moyen <?= fcfa($tot['n'] ? $tot['ca'] / $tot['n'] : 0) ?></div></div>
+<div class="tiles">
+  <?= stat_tile("Chiffre d'affaires", fcfa($tot['ca']), [pct_change((float)$tot['ca'], (float)$prev['ca']), 'mois précédent']) ?>
+  <?= stat_tile('Frais IZI Spot', fcfa($tot['frais']), null, [], $tot['ca'] ? round($tot['frais'] * 100 / $tot['ca'], 1) . ' % du chiffre d\'affaires' : '') ?>
+  <?= stat_tile('Net crédité', fcfa($tot['ca'] - $tot['frais']), [pct_change($tot['ca'] - $tot['frais'], $prev['ca'] - $prev['frais']), 'mois précédent']) ?>
+  <?= stat_tile('Ventes', (string)(int)$tot['n'], [pct_change((float)$tot['n'], (float)$prev['n']), 'mois précédent'], [], 'panier moyen ' . h(fcfa($tot['n'] ? $tot['ca'] / $tot['n'] : 0))) ?>
 </div>
-<?php if ($balance): ?>
-<h2>Solde IZI Spot</h2>
-<div class="kpis">
-  <div class="kpi"><span>Disponible au retrait</span><b><?= fcfa($balance['available'] ?? 0) ?></b></div>
-  <div class="kpi"><span>Retraits en cours</span><b><?= fcfa($balance['pending'] ?? 0) ?></b></div>
-  <div class="kpi"><span>Total encaissé (net)</span><b><?= fcfa($balance['totalEarned'] ?? 0) ?></b></div>
-  <div class="kpi"><span>Total retiré</span><b><?= fcfa($balance['totalWithdrawn'] ?? 0) ?></b></div>
+
+<div class="grid">
+  <?= card('Net et frais, 12 derniers mois', chart_stacked($mItems, [['name' => 'Net crédité', 'color' => 'var(--s1)'], ['name' => 'Frais IZI Spot', 'color' => 'var(--s2)']],
+        ['fmt' => fn($v) => fcfa($v), 'every' => 1])
+        . data_table(['Mois', "Chiffre d'affaires", 'Frais', 'Net', 'Ventes'], array_map(fn($m, $v) => [$mLabel($m), fcfa($v['ca']), fcfa($v['frais']), fcfa($v['ca'] - $v['frais']), $v['n']], array_keys($months), $months)),
+        '', 'c7') ?>
+  <?php
+  if ($balance) {
+      $b = '<div class="tiles" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:0">'
+         . stat_tile('Disponible au retrait', fcfa($balance['available'] ?? 0)) . stat_tile('Retraits en cours', fcfa($balance['pending'] ?? 0))
+         . stat_tile('Total encaissé (net)', fcfa($balance['totalEarned'] ?? 0)) . stat_tile('Total retiré', fcfa($balance['totalWithdrawn'] ?? 0))
+         . '</div><p class="note" style="margin:12px 0 0">Lu en direct chez IZI Spot. Les retraits (minimum 1 000 FCFA) se font depuis votre espace IZI Spot.</p>';
+  } else {
+      $b = '<p class="muted">Solde IZI Spot indisponible pour le moment.</p>';
+  }
+  echo card('Solde IZI Spot', $b, '', 'c5');
+  ?>
 </div>
-<p class="note">Solde lu en direct chez IZI Spot. Les retraits (minimum 1 000 FCFA) se font depuis votre espace IZI Spot.</p>
-<?php else: ?>
-<p class="note">Solde IZI Spot indisponible pour le moment.</p>
-<?php endif; ?>
 
-<h2>Par forfait</h2>
-<div class="scroll"><table><thead><tr><th>Forfait</th><th class="n">Ventes</th><th class="n">Chiffre d'affaires</th><th class="n">Part</th></tr></thead><tbody>
-<?php foreach ($byPlan as $r): ?><tr><td><?= h($r['label']) ?></td><td class="n"><?= (int)$r['n'] ?></td><td class="n"><?= fcfa($r['ca']) ?></td>
-<td class="n"><?= $tot['ca'] ? round($r['ca'] * 100 / $tot['ca']) : 0 ?> %</td></tr><?php endforeach; ?>
-<?php if (!$byPlan): ?><tr><td colspan="4" class="muted">Aucune vente ce mois-ci.</td></tr><?php endif; ?>
-</tbody></table></div>
+<div class="grid">
+  <?= card("Chiffre d'affaires par jour", chart_columns($dItems, ['fmt' => fn($v) => fcfa($v), 'every' => 3, 'height' => 180, 'empty' => 'Aucune vente ce mois-ci.'])
+        . data_table(['Jour', 'Ventes', "Chiffre d'affaires", 'Frais', 'Net'], array_map(fn($d) => [date('d/m/Y', strtotime($d['jour'])), (int)$d['n'], fcfa($d['ca']), fcfa($d['frais']), fcfa($d['ca'] - $d['frais'])], $byDay)),
+        '', 'c12') ?>
+</div>
 
-<h2>Par opérateur</h2>
-<div class="scroll"><table><thead><tr><th>Opérateur</th><th class="n">Ventes</th><th class="n">Chiffre d'affaires</th></tr></thead><tbody>
-<?php foreach ($byOp as $r): ?><tr><td><?= $r['operator'] === 'mtn' ? 'MTN Mobile Money' : 'Orange Money' ?></td><td class="n"><?= (int)$r['n'] ?></td><td class="n"><?= fcfa($r['ca']) ?></td></tr><?php endforeach; ?>
-</tbody></table></div>
-
-<h2>Par jour</h2>
-<div class="scroll"><table><thead><tr><th>Jour</th><th class="n">Ventes</th><th class="n">Chiffre d'affaires</th><th class="n">Frais</th><th class="n">Net</th></tr></thead><tbody>
-<?php foreach ($byDay as $d): ?><tr><td><?= h(date('d/m/Y', strtotime($d['jour']))) ?></td><td class="n"><?= (int)$d['n'] ?></td>
-<td class="n"><?= fcfa($d['ca']) ?></td><td class="n"><?= fcfa($d['frais']) ?></td><td class="n"><?= fcfa($d['ca'] - $d['frais']) ?></td></tr><?php endforeach; ?>
-</tbody></table></div>
+<div class="grid">
+  <?= card('Par forfait', chart_hbars(array_map(fn($r) => ['label' => $r['label'], 'v' => (float)$r['ca'], 'value' => fcfa_short((float)$r['ca']),
+        'sub' => (int)$r['n'] . ' ventes · ' . ($tot['ca'] ? round($r['ca'] * 100 / $tot['ca']) : 0) . ' % · net ' . fcfa_short($r['ca'] - $r['frais'])], $byPlan), ['empty' => 'Aucune vente ce mois-ci.']), '', 'c7') ?>
+  <?= card('Par opérateur', chart_hbars(array_map(fn($r) => ['label' => $r['operator'] === 'mtn' ? 'MTN Mobile Money' : 'Orange Money', 'v' => (float)$r['ca'],
+        'value' => fcfa_short((float)$r['ca']), 'sub' => (int)$r['n'] . ' ventes · ' . ($tot['ca'] ? round($r['ca'] * 100 / $tot['ca']) : 0) . ' %'], $byOp), ['empty' => 'Aucune vente ce mois-ci.']), '', 'c5') ?>
+</div>
 <?php page_end();

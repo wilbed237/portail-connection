@@ -1,0 +1,16 @@
+# Aperçu local de l'espace admin, avec les sources montées : une modification de public/ ou src/
+# est visible au simple rechargement de la page.
+#   docker compose -f tests/docker-compose.test.yml -f tests/docker-compose.preview.yml -p gandalpreview up -d --build
+#   docker compose ... exec worker php tests/seed.php      (données de démonstration)
+services:
+  app:
+    ports: !override ["127.0.0.1:8090:80"]
+    volumes:
+      - ../public:/var/www/app/public:ro
+      - ../src:/var/www/app/src:ro
+  worker:
+    volumes:
+      - ../src:/var/www/app/src:ro
+      - ./:/var/www/app/tests:ro
+  grafana:
+    ports: !override []
