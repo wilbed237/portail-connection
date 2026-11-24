@@ -784,8 +784,8 @@
   // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php) ;
   // les illimités à volume passent ensuite à « rate_after » (2 Mb/s), indiqué dans desc.
   var PLANS = [
-    { id:'1go-1j',     group:'1', name:'1 Go',              period:'1 jour',      price:100,  speed:5 },
-    { id:'illim-1j',   group:'1', name:'Illimité',          period:'1 jour',      price:250,  speed:2 },
+    { id:'1go-1j',     group:'1', name:'1 Go',              period:'1 jour',      price:100,  speed:5, desc:'Jusqu\'à 23 h 59 le jour de la 1re connexion' },
+    { id:'illim-1j',   group:'1', name:'Illimité',          period:'1 jour',      price:250,  speed:2, desc:'Jusqu\'à 23 h 59 le jour de la 1re connexion' },
     { id:'4go-3j',     group:'1', name:'4 Go',              period:'3 jours',     price:300,  speed:5 },
     { id:'8go-5j',     group:'1', name:'8 Go',              period:'5 jours',     price:500,  speed:5 },
     { id:'20go-7j',    group:'1', name:'20 Go Haut Débit',  period:'1 semaine',   price:1000, speed:5, tag:'Meilleur prix au Go' },
