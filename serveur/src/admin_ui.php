@@ -13,7 +13,7 @@ const ADMIN_NAV = [
     'compta.php'  => ['Comptabilité', '<rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h8M8 14h3M8 18h3M14 14h2M14 18h2"/>'],
 ];
 
-function page_start(string $title, array $me, string $active, string $subtitle = ''): void {
+function page_start(string $title, array $me, string $active, string $subtitle = '', string $actions = ''): void {
     header('X-Frame-Options: DENY');
     header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'");
     header('Referrer-Policy: same-origin');
@@ -26,7 +26,7 @@ function page_start(string $title, array $me, string $active, string $subtitle =
     }
     echo '<a href="' . h(cfg()['grafana_url']) . '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Grafana</span></a>';
     echo '</nav><div class="me"><span class="avatar">' . h(strtoupper(substr($me['user'], 0, 1))) . '</span><span><b>' . h($me['user']) . '</b><small>' . h($me['role']) . '</small></span><a href="logout.php" title="Déconnexion" aria-label="Déconnexion"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></a></div></aside>';
-    echo '<main><header class="ph"><div><h1>' . h($title) . '</h1>' . ($subtitle ? '<p class="sub">' . $subtitle . '</p>' : '') . '</div></header>';
+    echo '<main><header class="ph"><div><h1>' . h($title) . '</h1>' . ($subtitle ? '<p class="sub">' . $subtitle . '</p>' : '') . '</div>' . ($actions ? '<div class="ph-actions">' . $actions . '</div>' : '') . '</header>';
 }
 
 function page_end(): void { echo '<div id="tip" role="tooltip" hidden></div></main></div></body></html>'; }
@@ -80,6 +80,7 @@ a{color:var(--accent)}
 .me a{color:var(--brand-ink);opacity:.7;display:grid;place-items:center;width:32px;height:32px;border-radius:8px}.me a:hover{opacity:1;background:rgba(255,255,255,.08)}
 .avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-weight:700}
 main{padding:24px 28px 56px;max-width:1360px;width:100%;min-width:0}
+.ph-actions{display:flex;gap:8px;flex-wrap:wrap}
 .ph{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 h1{font-size:22px;margin:0;letter-spacing:-.01em}.sub{margin:2px 0 0;color:var(--ink2)}
 h2{font-size:15px;margin:0;font-weight:600}
@@ -246,6 +247,13 @@ function period_bar(string $from, string $to, string $extra = '', array $keep = 
     $out .= '<label>Du<input type="date" name="du" value="' . h($from) . '"></label><label>Au<input type="date" name="au" value="' . h($to) . '"></label>';
     foreach ($keep as $k => $v) { if (!in_array($k, ['p', 'du', 'au'], true)) { $out .= '<input type="hidden" name="' . h($k) . '" value="' . h((string)$v) . '">'; } }
     return $out . $extra . '<button type="submit">Appliquer</button></form>';
+}
+
+/* Boutons de téléchargement de la page : rapport PDF détaillé et données brutes CSV (paramètres de la page conservés) */
+function export_buttons(array $query = []): string {
+    $q = fn($fmt) => h(http_build_query(array_merge($query ?: $_GET, ['export' => $fmt])));
+    $icon = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>';
+    return '<a class="btn" href="?' . $q('pdf') . '">' . $icon . 'Rapport PDF</a><a class="btn secondary" href="?' . $q('csv') . '" title="Données brutes pour Excel">CSV</a>';
 }
 
 /* Libellé lisible d'une période */

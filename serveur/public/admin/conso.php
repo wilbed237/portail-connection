@@ -27,6 +27,7 @@ $fmtPeriod = function (string $ts) use ($grain): string {
     return match ($grain) { 'hour' => date('d/m/Y H\\h', $t), 'day' => date('d/m/Y', $t), 'week' => 'Semaine du ' . date('d/m/Y', $t), 'month' => date('m/Y', $t), 'year' => date('Y', $t) };
 };
 
+if (($_GET['export'] ?? '') === 'pdf') { report_conso($from, $to, $grain, $me); }
 if (($_GET['export'] ?? '') === 'csv') {
     audit($me['user'], 'export consommation', "$from → $to ($grain)");
     csv_out("consommation-$grain-$from-$to.csv", [$grainLabel, 'Réception (octets)', 'Envoi (octets)', 'Total (Go)', 'Utilisateurs'],
@@ -71,7 +72,7 @@ $extra = '<label>Regrouper par<select name="par">';
 foreach (['' => 'Automatique', 'hour' => 'Heure', 'day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois', 'year' => 'Année'] as $k => $l) { $extra .= '<option value="' . $k . '"' . ($par === $k ? ' selected' : '') . '>' . $l . '</option>'; }
 $extra .= '</select></label>';
 
-page_start('Consommation', $me, 'conso.php', 'Données consommées ' . h(period_label($from, $to)));
+page_start('Consommation', $me, 'conso.php', 'Données consommées ' . h(period_label($from, $to)), export_buttons());
 echo period_bar($from, $to, $extra, $keep);
 echo zoom_nav($from, $to, $keep, $since ?: null);
 ?>
@@ -86,7 +87,7 @@ echo zoom_nav($from, $to, $keep, $since ?: null);
   <?= card('Consommation par ' . strtolower($grainLabel), chart_stacked($items, [['name' => 'Réception', 'color' => 'var(--s1)'], ['name' => 'Envoi', 'color' => 'var(--s2)']],
         ['fmt' => fn($v) => go_h($v), 'axis' => fn($v) => num_short($v) . ' Go', 'every' => max(1, (int)ceil(count($items) / 12))])
         . data_table([$grainLabel, 'Réception', 'Envoi', 'Total', 'Utilisateurs'], array_map(fn($r) => [$fmtPeriod($r['periode']), gb_h((float)$r['down']), gb_h((float)$r['up']), gb_h($r['down'] + $r['up']), (int)$r['users']], $series)),
-        '<a class="btn secondary" href="?' . h(http_build_query(array_merge($_GET, ['export' => 'csv']))) . '">Exporter en CSV</a>', 'c12') ?>
+        '', 'c12') ?>
 </div>
 
 <div class="grid">

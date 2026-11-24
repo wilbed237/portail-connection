@@ -22,6 +22,11 @@ $rows = all("SELECT o.created_at, o.reference, p.label, o.amount, o.fee, o.opera
 $isAdmin = $me['role'] === 'admin';
 $phone = fn($p) => $isAdmin ? $p : mask_phone($p);
 
+if (($_GET['export'] ?? '') === 'pdf') {
+    $stLabels = ['encaisse' => 'Encaissés', 'complete' => 'Livrés', 'paid_no_ticket' => 'Payés sans ticket', 'pending' => 'En attente', 'failed' => 'Refusés', 'expired' => 'Expirés'];
+    report_ventes($from, $to, $w, $args, 'état : ' . ($stLabels[$status] ?? 'tous') . ' · forfait : ' . (plans()[$plan]['label'] ?? 'tous')
+        . ' · opérateur : ' . (['mtn' => 'MTN', 'orange' => 'Orange'][$op] ?? 'tous'), $me, $phone);
+}
 if (($_GET['export'] ?? '') === 'csv') {
     audit($me['user'], 'export ventes', "$from → $to");
     csv_out("ventes-$from-$to.csv",
@@ -84,7 +89,7 @@ foreach (plans() as $id => $p) { $extra .= '<option value="' . h($id) . '"' . ($
 $extra .= '</select></label><label>Opérateur<select name="operateur"><option value="">Tous</option><option value="mtn"' . ($op === 'mtn' ? ' selected' : '')
         . '>MTN</option><option value="orange"' . ($op === 'orange' ? ' selected' : '') . '>Orange</option></select></label>';
 
-page_start('Ventes', $me, 'ventes.php', 'Ventes ' . h(period_label($from, $to)) . ($isAdmin ? '' : ' · numéros masqués pour le rôle comptable'));
+page_start('Ventes', $me, 'ventes.php', 'Ventes ' . h(period_label($from, $to)) . ($isAdmin ? '' : ' · numéros masqués pour le rôle comptable'), export_buttons());
 echo period_bar($from, $to, $extra, $keep);
 echo zoom_nav($from, $to, $keep, $since ?: null);
 ?>
@@ -121,6 +126,6 @@ foreach (array_slice($rows, 0, 500) as $r) {
 }
 echo '<div class="grid">' . card((int)$cur['total'] . ' commandes', '<div class="scroll"><table class="cards"><thead><tr><th>Date</th><th>Référence</th><th>Forfait</th><th class="n">Montant</th><th>Opérateur</th><th>Téléphone</th><th>État</th><th>Ticket</th></tr></thead><tbody>'
     . ($list ?: '<tr><td colspan="8" class="muted">Aucune commande sur cette période.</td></tr>') . '</tbody></table></div>'
-    . (count($rows) > 500 ? '<p class="note">Seules les 500 premières lignes sont affichées. L\'export CSV contient tout.</p>' : ''),
+    . (count($rows) > 500 ? '<p class="note">Seules les 500 premières lignes sont affichées. Le rapport PDF et l\'export CSV contiennent tout.</p>' : ''),
     '<a class="btn secondary" href="?' . h(http_build_query(array_merge($_GET, ['export' => 'csv']))) . '">Exporter en CSV</a>', 'c12') . '</div>';
 page_end();

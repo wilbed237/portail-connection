@@ -45,14 +45,14 @@ $dItems = $start <= date('Y-m-d') ? array_map(fn($d) => ['x' => date('d', strtot
 // Solde du compte marchand, lu en direct (lecture limitée : 120 par minute chez IZI Spot)
 $bal = pay_api('GET', '/v1/balance');
 $balance = $bal['code'] === 200 && is_array($bal['data']) ? $bal['data'] : null;
+if (($_GET['export'] ?? '') === 'pdf') { report_compta($month, $balance, $me); }
 
-page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) . ' · frais IZI Spot de 7 % déduits à chaque paiement');
+page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) . ' · frais IZI Spot de 7 % déduits à chaque paiement', export_buttons(['mois' => $month]));
 ?>
 <form class="filters" method="get">
   <?= seg('mois', [date('Y-m', strtotime($start . ' -1 month')) => '← ' . $mLabel(date('Y-m', strtotime($start . ' -1 month'))), date('Y-m') => 'Mois en cours'], $month) ?>
   <label>Mois<input type="month" name="mois" value="<?= h($month) ?>" max="<?= date('Y-m') ?>"></label>
   <button type="submit">Afficher</button>
-  <a class="btn secondary" href="?mois=<?= h($month) ?>&amp;export=csv">Exporter le mois en CSV</a>
 </form>
 
 <div class="tiles">

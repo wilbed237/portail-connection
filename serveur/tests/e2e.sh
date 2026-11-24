@@ -158,6 +158,13 @@ done
 curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php" | grep -q "677 •• •• 56" && ok "numéros masqués pour le comptable" || ko "numéros masqués pour le comptable"
 curl -s -b "$JAR" "http://127.0.0.1:8088/admin/compta.php" | grep -q "Disponible au retrait" && ok "solde IZI Spot affiché en comptabilité" || ko "solde IZI Spot affiché en comptabilité"
 check "export CSV comptable" "$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/compta.php?export=csv" | head -1 | tr -d '\r\357\273\277' | cut -d';' -f1)" "Jour"
+for P in ventes conso compta; do
+  check "rapport PDF $P" "$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/$P.php?export=pdf" | head -c 8)" "%PDF-1.4"
+done
+check "rapport PDF des ventes : numéros masqués pour le comptable" "$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=7j&export=pdf" | python3 -c "
+import sys,zlib,re
+d=sys.stdin.buffer.read(); t=b''.join(zlib.decompress(m) for m in re.findall(rb'stream\n(.*?)\nendstream', d, re.S) if not m.startswith(b'\xff\xd8'))
+print('ok' if b'677 \x95\x95 \x95\x95 56' in t and b'677123456' not in t else 'ko')")" "ok"
 check "relance d'un ticket interdite au comptable" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -d "csrf=$(curl -s -b "$JAR" http://127.0.0.1:8088/admin/login.php | sed -n 's/.*name="csrf" value="\([0-9a-f]*\)".*/\1/p' | head -1)&reference=$REF" http://127.0.0.1:8088/admin/tickets.php)" "403"
 check "POST sans jeton CSRF refusé" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -d "reference=$REF" http://127.0.0.1:8088/admin/tickets.php)" "400"
 check "journal d'audit" "$(sql "SELECT count(*) > 0 FROM audit_log WHERE actor='compta1' AND action='connexion'")" "t"
