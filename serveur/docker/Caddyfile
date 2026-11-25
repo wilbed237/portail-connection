@@ -23,3 +23,10 @@
 		reverse_proxy app:80
 	}
 }
+
+# Raccourci pour les postes de l'équipe : connection.gi est déclaré dans leur fichier hosts
+# (51.21.209.22 connection.gi). Ce n'est pas un vrai domaine, il n'a donc pas de certificat :
+# il répond en HTTP et renvoie aussitôt vers l'adresse officielle en HTTPS.
+http://connection.gi {
+	redir https://{$DOMAIN}{uri} 302
+}

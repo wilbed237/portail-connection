@@ -152,6 +152,9 @@ et s'arrête à 100 lectures par minute.
 | Retrouver un ticket, ses sessions, relancer un client payé sans ticket, stock de secours | `/admin/tickets.php` |
 | Graphiques (période libre, regroupement jour / semaine / mois) | `/grafana/` |
 
+Raccourci pour un poste de l'équipe : ajouter `51.21.209.22 connection.gi` à `/etc/hosts` (Linux, macOS)
+ou `C:\Windows\System32\drivers\etc\hosts` (Windows). `http://connection.gi/admin/` renvoie alors vers l'adresse officielle.
+
 Alertes Telegram (si configuré) : routeur injoignable, client payé sans ticket, routeur qui refuse de créer des tickets,
 paiements refusés en série, stock de secours bas, et un récapitulatif chaque soir à 21 h.
 
