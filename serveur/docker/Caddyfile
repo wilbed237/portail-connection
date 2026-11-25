@@ -9,12 +9,17 @@
 		-Server
 	}
 
-	# Espace admin et Grafana : uniquement depuis les adresses autorisées (VPN WireGuard, bureau…)
+	# Grafana : uniquement depuis les adresses autorisées (VPN WireGuard, bureau…).
+	# L'espace admin reste ouvert à Internet (choix de l'exploitant) : mot de passe + code TOTP + blocage.
+	# Le refus est dans un « handle » placé en premier : un « respond » seul passerait APRÈS les
+	# blocs handle (ordre imposé par Caddy) et ne serait jamais atteint.
 	@prive {
-		path /admin* /grafana*
+		path /grafana*
 		not remote_ip {$ADMIN_ALLOWED_IPS}
 	}
-	respond @prive "Accès refusé" 403
+	handle @prive {
+		respond "Accès refusé" 403
+	}
 
 	handle /grafana* {
 		reverse_proxy grafana:3000
