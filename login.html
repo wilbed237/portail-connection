@@ -163,6 +163,11 @@
   .my-ticket .mt-info{ flex:1; min-width:0; font-size:12.5px; color:var(--ink-soft); }
   .my-ticket .mt-info b{ display:block; color:var(--navy-deep); font-size:13.5px; }
   .my-ticket button{ border:none; background:var(--navy); color:#fff; font-weight:600; font-size:12.5px; padding:8px 12px; border-radius:10px; cursor:pointer; font-family:var(--font-body); }
+  .my-ticket .mt-creds{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:3px; font-size:12.5px; }
+  .my-ticket .mt-creds span{ white-space:nowrap; }
+  .my-ticket .mt-creds code{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; font-weight:700; color:var(--navy-deep); background:var(--soft); padding:1px 6px; border-radius:6px; }
+  .my-ticket .mt-date{ display:block; font-size:11.5px; margin-top:2px; }
+  .my-tickets .mt-note{ margin:10px 0 0; font-size:11.5px; color:#7F8EA0; line-height:1.5; }
 
   /* ---- Promotion ---- */
   .promo{
@@ -444,8 +449,9 @@
       </form>
 
       <div class="my-tickets" id="myTickets">
-        <h3>Tickets achetés sur ce téléphone</h3>
+        <h3>Mes 3 derniers tickets</h3>
         <div id="myTicketsList"></div>
+        <p class="mt-note">Gardés sur cet appareil, dans ce navigateur. Notez-les aussi ailleurs : ils s'effacent si vous videz les données du navigateur.</p>
       </div>
 
       <p class="terms">En vous connectant, vous acceptez les <a href="#" data-goto="aide" data-anchor="conditions">conditions d'utilisation</a> du réseau.</p>
@@ -1163,21 +1169,40 @@
   byId('okConnect').addEventListener('click', function(){ loginWith(byId('okUser').textContent, byId('okPass').textContent); });
 
   // ---- Tickets enregistrés sur l'appareil ----
+  var MAX_TICKETS = 3;
+  function ticketCookie(val){
+    try {
+      if (val === undefined) {
+        var m = document.cookie.match(/(?:^|; )ws_tickets=([^;]*)/);
+        return m ? JSON.parse(decodeURIComponent(m[1])) : null;
+      }
+      document.cookie = 'ws_tickets=' + encodeURIComponent(JSON.stringify(val)) + '; max-age=' + (180 * 86400) + '; path=/; SameSite=Lax';
+    } catch(e){ return null; }
+  }
+  function loadTickets(){
+    var list = store('ws_tickets');
+    if (!Array.isArray(list) || !list.length) { list = ticketCookie(); }
+    return Array.isArray(list) ? list.filter(function(t){ return t && t.user; }).slice(0, MAX_TICKETS) : [];
+  }
   function saveTicket(t){
-    var list = store('ws_tickets') || [];
-    list = list.filter(function(x){ return x.ref !== t.ref; });
+    var list = loadTickets().filter(function(x){ return x.ref !== t.ref && x.user !== t.user; });
     list.unshift(t);
-    store('ws_tickets', list.slice(0, 5));
+    list = list.slice(0, MAX_TICKETS);
+    store('ws_tickets', list);
+    ticketCookie(list);
     renderTickets();
   }
   function renderTickets(){
-    var list = store('ws_tickets') || [];
+    var list = loadTickets();
     var box = byId('myTickets');
     if (!list.length) { box.style.display = 'none'; return; }
     box.style.display = 'block';
     byId('myTicketsList').innerHTML = list.map(function(t, i){
       var d = new Date(t.date);
-      return '<div class="my-ticket"><div class="mt-info"><b>' + esc(t.plan || 'Forfait') + '</b>' + esc(t.user) + ' · acheté le ' + (isNaN(d) ? '' : d.toLocaleDateString('fr-FR')) + '</div><button type="button" data-i="' + i + '">Utiliser</button></div>';
+      var when = isNaN(d) ? '' : 'Acheté le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      return '<div class="my-ticket"><div class="mt-info"><b>' + esc(t.plan || 'Forfait') + '</b>' +
+        '<div class="mt-creds"><span>Identifiant <code>' + esc(t.user) + '</code></span><span>Mot de passe <code>' + esc(t.pass || '') + '</code></span></div>' +
+        '<span class="mt-date">' + esc(when) + '</span></div><button type="button" data-i="' + i + '">Utiliser</button></div>';
     }).join('');
     byId('myTicketsList').querySelectorAll('button').forEach(function(b){
       b.addEventListener('click', function(){ var t = list[+b.dataset.i]; loginWith(t.user, t.pass); });

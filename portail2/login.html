@@ -1,0 +1,1294 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wi-Fi Académie Cisco ENSPY</title>
+<meta name="theme-color" content="#0B3F5C">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --sand:#F3F8FC; --sand-dark:#DCEBF5;
+    --navy:#0B3F5C; --navy-deep:#062C40;
+    --blue:#0091D5; --sky:#4FC3F7;
+    --terracotta:#F26A0F; --amber:#FF9A3C;
+    --red:#C8102E; --green:#1F8A4C;
+    --mtn:#FFCB05; --orange:#FF7900;
+    --ink:#15263A; --ink-soft:#4C617A; --white:#FFFFFF;
+    --line:#E4E9EE; --soft:#F5F7FA;
+    --radius-card:28px; --radius-field:14px;
+    --shadow-card: 0 30px 60px -20px rgba(18,42,68,0.35), 0 2px 8px rgba(18,42,68,0.08);
+    --font-display:'Montserrat', 'Segoe UI', system-ui, sans-serif;
+    --font-body:'Inter', 'Segoe UI', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    min-height:100vh; font-family:var(--font-body); color:var(--ink);
+    background: radial-gradient(120% 90% at 50% -10%, #FFFFFF 0%, var(--sand) 46%, var(--sand-dark) 100%);
+    display:flex; align-items:flex-start; justify-content:center; padding:40px 16px;
+    position:relative; overflow-x:hidden;
+  }
+  body::before{
+    content:""; position:fixed; left:50%; bottom:-30vh; width:140vw; height:60vh; transform:translateX(-50%);
+    background: radial-gradient(ellipse at center, rgba(242,106,15,0.26) 0%, rgba(255,154,60,0.12) 35%, rgba(255,154,60,0) 70%);
+    pointer-events:none; z-index:0;
+  }
+  body.locked{ overflow:hidden; }
+  .stage{ position:relative; z-index:1; width:100%; max-width:480px; }
+  .card{
+    background:var(--white); border-radius:var(--radius-card); box-shadow:var(--shadow-card);
+    padding:40px 30px 30px; position:relative; border:1px solid rgba(24,58,92,0.06);
+  }
+  .card::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:5px; border-radius:var(--radius-card) var(--radius-card) 0 0;
+    background: linear-gradient(90deg, var(--navy) 0%, var(--blue) 35%, var(--sky) 55%, var(--amber) 80%, var(--terracotta) 100%);
+  }
+  .badge-wrap{ display:flex; justify-content:center; margin-bottom:16px; }
+  .badge-wrap img{ width:84px; height:84px; object-fit:contain; background:#fff; border-radius:22px; border:1px solid var(--line); box-shadow:0 10px 24px -6px rgba(24,58,92,0.35); }
+  h1{ font-family:var(--font-display); font-weight:700; font-size:23px; text-align:center; margin:0 0 4px; color:var(--navy-deep); letter-spacing:-0.01em; }
+  .subtitle{ text-align:center; font-size:14px; color:var(--ink-soft); margin:0 0 22px; line-height:1.5; }
+  .subtitle strong{ color:var(--navy); }
+
+  /* ---- Marque ---- */
+  .brand{ text-align:center; margin:0 0 18px; }
+  .brand-name{
+    font-family:var(--font-display); font-weight:800; font-size:27px; line-height:1.1; letter-spacing:.04em; margin:0; padding-left:.04em;
+    color:var(--navy);
+    background:linear-gradient(100deg, var(--navy-deep) 0%, var(--blue) 45%, var(--terracotta) 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .brand-dept{
+    display:inline-flex; align-items:center; gap:10px; margin-top:6px;
+    font-size:11.5px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--ink-soft);
+  }
+  .brand-dept::before, .brand-dept::after{ content:""; width:22px; height:2px; border-radius:2px; background:linear-gradient(90deg, var(--sky), var(--amber)); }
+
+  /* ---- Onglets en verre liquide ---- */
+  .tabs{
+    display:flex; border-radius:16px; padding:4px; margin-bottom:24px; position:relative; isolation:isolate;
+    background:
+      radial-gradient(60% 140% at 10% 0%, rgba(143,196,234,0.45) 0%, rgba(143,196,234,0) 60%),
+      radial-gradient(50% 140% at 95% 100%, rgba(240,177,94,0.40) 0%, rgba(240,177,94,0) 60%),
+      #EEF2F6;
+    box-shadow:inset 0 1px 3px rgba(18,42,68,0.10), inset 0 -1px 0 rgba(255,255,255,0.8);
+  }
+  .tab-btn{
+    flex:1; border:none; background:transparent; font-family:var(--font-display); font-weight:600; font-size:12.5px;
+    color:var(--ink-soft); padding:10px 2px; border-radius:12px; cursor:pointer; position:relative; z-index:1; transition:color .25s ease, transform .25s ease;
+    white-space:nowrap;
+  }
+  .tab-btn.active{ color:var(--navy-deep); }
+  .tab-btn:active{ transform:scale(.95); }
+  .tab-btn .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--terracotta); margin-left:4px; vertical-align:middle; }
+  .tab-indicator{
+    position:absolute; top:4px; left:4px; height:calc(100% - 8px); width:calc((100% - 8px) / 4); z-index:0;
+    border-radius:12px; overflow:hidden;
+    background:linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.55) 100%);
+    -webkit-backdrop-filter:blur(10px) saturate(180%); backdrop-filter:blur(10px) saturate(180%);
+    border:1px solid rgba(255,255,255,0.9);
+    box-shadow:
+      0 6px 16px -6px rgba(24,58,92,0.35),
+      inset 0 1px 1px rgba(255,255,255,1),
+      inset 0 -2px 6px rgba(61,126,191,0.12),
+      inset 0 0 0 1px rgba(143,196,234,0.25);
+    will-change:transform;
+  }
+  /* reflet spéculaire qui glisse sur la goutte */
+  .tab-indicator::before{
+    content:""; position:absolute; top:1px; left:12%; right:12%; height:42%; border-radius:999px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.95), rgba(255,255,255,0));
+  }
+  .tab-indicator::after{
+    content:""; position:absolute; inset:-40% -60%;
+    background:linear-gradient(105deg, rgba(255,255,255,0) 40%, rgba(255,255,255,0.75) 50%, rgba(255,255,255,0) 60%);
+    transform:translateX(-60%); opacity:0;
+  }
+  .tab-indicator.shine::after{ animation:dropShine .7s ease-out; }
+  @keyframes dropShine{ 0%{ transform:translateX(-60%); opacity:1; } 100%{ transform:translateX(60%); opacity:0; } }
+
+  .panel{ display:none; transform-origin:50% 0; }
+  .panel.active{ display:block; }
+
+
+  /* ---- Formulaire ---- */
+  form{ display:flex; flex-direction:column; gap:16px; }
+  .field{ display:flex; flex-direction:column; gap:7px; }
+  .field label{ font-size:13px; font-weight:600; color:var(--ink-soft); }
+  .input-row{
+    display:flex; align-items:stretch; background:var(--soft); border:1.5px solid #E1E7ED; border-radius:var(--radius-field);
+    transition:border-color .18s ease, box-shadow .18s ease, background .18s ease;
+  }
+  .input-row:focus-within{ border-color:var(--blue); background:var(--white); box-shadow:0 0 0 4px rgba(61,126,191,0.14); }
+  .input-row .prefix{ display:flex; align-items:center; padding:0 0 0 16px; font-weight:600; color:var(--ink-soft); font-size:16px; }
+  input[type="text"], input[type="password"], input[type="tel"]{
+    flex:1; min-width:0; border:none; outline:none; background:transparent; font-family:var(--font-body);
+    font-size:16px; font-weight:500; color:var(--ink); padding:14px 16px; letter-spacing:0.01em;
+  }
+  input::placeholder{ color:#9AA8B8; font-weight:400; }
+  .toggle-pass{ display:flex; align-items:center; padding:0 14px; cursor:pointer; color:#9AA8B8; border:none; border-left:1.5px solid #E1E7ED; background:transparent; }
+  .toggle-pass svg{ width:18px; height:18px; }
+  .toggle-pass:hover{ color:var(--blue); }
+
+  .error-box{ display:none; background:#FDECEA; border:1.5px solid #F3C7C0; color:var(--red); font-size:13px; font-weight:600; padding:11px 14px; border-radius:12px; margin-bottom:16px; }
+
+  .btn-primary{
+    margin-top:6px; border:none; cursor:pointer; padding:15px 18px; border-radius:var(--radius-field);
+    font-family:var(--font-display); font-weight:600; font-size:15.5px; color:#fff; width:100%;
+    background:linear-gradient(120deg, var(--navy) 0%, var(--blue) 60%, var(--terracotta) 130%);
+    box-shadow:0 10px 22px -8px rgba(24,58,92,0.55); transition:transform .15s ease, box-shadow .15s ease, filter .15s ease, opacity .15s ease;
+    display:flex; align-items:center; justify-content:center; gap:10px; text-decoration:none;
+  }
+  .btn-primary:hover:not([disabled]){ transform:translateY(-1px); box-shadow:0 14px 26px -8px rgba(24,58,92,0.6); filter:brightness(1.03); }
+  .btn-primary[disabled]{ opacity:.5; cursor:not-allowed; box-shadow:none; }
+  .btn-primary svg{ width:16px; height:16px; flex-shrink:0; }
+  .btn-ghost{
+    border:1.5px solid var(--line); background:#fff; color:var(--navy-deep); cursor:pointer; padding:12px 16px; border-radius:var(--radius-field);
+    font-family:var(--font-display); font-weight:600; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px; text-decoration:none; width:100%;
+  }
+  .btn-ghost:hover{ border-color:var(--blue); }
+
+  .helper-row{ display:flex; justify-content:space-between; align-items:center; margin-top:2px; font-size:12.5px; color:var(--ink-soft); }
+  .helper-row a, .link{ color:var(--blue); text-decoration:none; font-weight:600; cursor:pointer; }
+  .helper-row a:hover, .link:hover{ text-decoration:underline; }
+  .terms{ margin-top:20px; text-align:center; font-size:11.5px; line-height:1.6; color:#7F8EA0; }
+  .terms a{ color:var(--ink-soft); text-decoration:underline; }
+
+  /* ---- Mes tickets (stockés sur l'appareil) ---- */
+  .my-tickets{ margin-top:22px; border:1.5px dashed #D5DEE7; border-radius:16px; padding:14px; display:none; }
+  .my-tickets h3{ margin:0 0 10px; font-family:var(--font-display); font-size:13.5px; color:var(--navy-deep); }
+  .my-ticket{ display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid #EEF2F6; }
+  .my-ticket:first-of-type{ border-top:none; padding-top:0; }
+  .my-ticket .mt-info{ flex:1; min-width:0; font-size:12.5px; color:var(--ink-soft); }
+  .my-ticket .mt-info b{ display:block; color:var(--navy-deep); font-size:13.5px; }
+  .my-ticket button{ border:none; background:var(--navy); color:#fff; font-weight:600; font-size:12.5px; padding:8px 12px; border-radius:10px; cursor:pointer; font-family:var(--font-body); }
+  .my-ticket .mt-creds{ display:flex; flex-wrap:wrap; gap:4px 12px; margin-top:3px; font-size:12.5px; }
+  .my-ticket .mt-creds span{ white-space:nowrap; }
+  .my-ticket .mt-creds code{ font-family:ui-monospace, SFMono-Regular, Menlo, monospace; font-size:13px; font-weight:700; color:var(--navy-deep); background:var(--soft); padding:1px 6px; border-radius:6px; }
+  .my-ticket .mt-date{ display:block; font-size:11.5px; margin-top:2px; }
+  .my-tickets .mt-note{ margin:10px 0 0; font-size:11.5px; color:#7F8EA0; line-height:1.5; }
+
+  /* ---- Promotion ---- */
+  .promo{ display:none !important; }
+  .promo-unused{
+    display:flex; gap:14px; align-items:flex-start; margin-bottom:18px; padding:16px;
+    border-radius:18px; color:#fff;
+    background:linear-gradient(125deg, var(--navy-deep) 0%, var(--navy) 55%, #7A4A2C 130%);
+    box-shadow:0 14px 28px -14px rgba(18,42,68,0.6); position:relative; overflow:hidden;
+  }
+  .promo::after{
+    content:""; position:absolute; right:-30px; top:-30px; width:110px; height:110px; border-radius:50%;
+    background:radial-gradient(circle, rgba(240,177,94,0.45) 0%, rgba(240,177,94,0) 70%); pointer-events:none;
+  }
+  .promo-icon{ width:42px; height:42px; border-radius:12px; flex-shrink:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg, var(--terracotta), var(--amber)); }
+  .promo-icon svg{ width:22px; height:22px; }
+  .promo-title{ font-family:var(--font-display); font-weight:700; font-size:15.5px; margin:0 0 3px; display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+  .promo-pill{ font-family:var(--font-body); font-size:11px; font-weight:600; background:rgba(255,255,255,0.18); padding:2px 9px; border-radius:999px; }
+  .promo-text{ margin:0; font-size:13px; line-height:1.5; color:#DCE7F2; }
+  .promo-end{ margin:6px 0 0; font-size:12px; font-weight:600; color:var(--amber); }
+
+  .pending-banner{ display:none; align-items:center; gap:10px; background:#FFF6E8; border:1.5px solid #F4D3A6; color:#7A4A12; padding:12px 14px; border-radius:14px; font-size:13px; margin-bottom:16px; }
+  .pending-banner span{ flex:1; }
+
+  /* ---- Groupes de forfaits ---- */
+  .group{ margin-bottom:18px; }
+  .group-head{ display:flex; align-items:center; gap:8px; margin:0 0 8px; font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--navy-deep); text-transform:uppercase; letter-spacing:.04em; }
+  .group-head .gh-icon{ width:24px; height:24px; border-radius:8px; display:flex; align-items:center; justify-content:center; background:var(--navy); color:#fff; }
+  .group-head .gh-icon svg{ width:14px; height:14px; }
+  .group-head.special .gh-icon{ background:linear-gradient(135deg, var(--red), var(--terracotta)); }
+  .group-note{ font-size:12px; color:var(--ink-soft); margin:-4px 0 8px; }
+
+  .tickets{ display:flex; flex-direction:column; gap:8px; }
+  .ticket{
+    display:flex; align-items:center; gap:12px; border:1.5px solid var(--line); border-radius:14px; padding:11px 12px 11px 14px;
+    position:relative; transition:border-color .18s ease, box-shadow .18s ease, transform .18s ease; cursor:pointer; background:#FDFCFA;
+  }
+  .ticket:hover{ border-color:var(--blue); box-shadow:0 10px 22px -12px rgba(24,58,92,0.3); }
+  .ticket.special{ border-color:#F0C3A4; background:linear-gradient(135deg, #FFF4EA 0%, #FDFCFA 60%); }
+  .ticket.selected{ border-color:var(--blue); background:#F3F8FD; box-shadow:0 0 0 3px rgba(61,126,191,0.18); }
+  .ticket-radio{ width:18px; height:18px; border-radius:50%; border:2px solid #C3CEDA; flex-shrink:0; position:relative; }
+  .ticket.selected .ticket-radio{ border-color:var(--blue); }
+  .ticket.selected .ticket-radio::after{ content:""; position:absolute; inset:3px; border-radius:50%; background:var(--blue); }
+  .ticket-info{ flex:1; min-width:0; }
+  .ticket-duration{ font-family:var(--font-display); font-weight:700; font-size:14.5px; color:var(--navy-deep); display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+  .ticket-duration .per{ font-family:var(--font-body); font-weight:500; color:var(--ink-soft); font-size:13px; }
+  .ticket-tag{ font-family:var(--font-body); font-size:10.5px; font-weight:700; color:#fff; background:var(--terracotta); padding:2px 7px; border-radius:6px; }
+  .ticket-desc{ font-size:12px; color:var(--ink-soft); margin-top:1px; }
+  .ticket-price{ font-family:var(--font-display); font-weight:800; font-size:15.5px; color:var(--navy-deep); white-space:nowrap; background:#FFF1E4; color:#B25A22; padding:5px 10px; border-radius:10px; }
+
+  .speed{ display:inline-flex; align-items:center; gap:3px; font-weight:700; font-size:11px; color:var(--blue); background:#EAF2FB; padding:1px 7px; border-radius:6px; margin-right:4px; }
+  .speed.fast{ color:#B25A22; background:#FFF1E4; }
+  .speed svg{ width:10px; height:10px; }
+  .speed-legend{ display:flex; flex-wrap:wrap; gap:6px 12px; font-size:12px; color:var(--ink-soft); margin:-2px 0 10px; }
+
+  .steps{ list-style:none; margin:4px 0 0; padding:14px 16px; background:var(--soft); border-radius:14px; display:flex; flex-direction:column; gap:8px; }
+  .steps li{ display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.45; color:var(--ink-soft); }
+  .steps li b{ flex-shrink:0; width:20px; height:20px; border-radius:50%; background:var(--navy); color:#fff; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin-top:1px; }
+
+  /* Barre d'achat collante */
+  .buy-bar{
+    position:sticky; bottom:12px; z-index:5; margin-top:16px; background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:12px;
+    box-shadow:0 18px 36px -14px rgba(18,42,68,0.45);
+  }
+  .buy-summary{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin:0 2px 10px; font-size:13px; color:var(--ink-soft); }
+  .buy-summary b{ color:var(--navy-deep); font-family:var(--font-display); font-size:14px; }
+  .buy-summary .total{ font-family:var(--font-display); font-weight:800; color:var(--navy-deep); font-size:17px; white-space:nowrap; }
+  .buy-actions{ display:flex; gap:8px; }
+  .buy-actions .btn-primary{ margin:0; flex:1.4; font-size:14.5px; padding:13px 12px; }
+  .btn-whatsapp{
+    flex:1; border:none; cursor:pointer; padding:13px 10px; border-radius:var(--radius-field);
+    font-family:var(--font-display); font-weight:600; font-size:13.5px; color:#fff; background:#1FA855; text-decoration:none;
+    display:flex; align-items:center; justify-content:center; gap:8px; transition:filter .15s ease, opacity .15s ease;
+  }
+  .btn-whatsapp:hover{ filter:brightness(1.05); }
+  .btn-whatsapp.disabled{ opacity:.5; cursor:not-allowed; pointer-events:none; }
+  .btn-whatsapp svg{ width:18px; height:18px; flex-shrink:0; }
+  .wa-logo{ width:22px; height:22px; flex-shrink:0; display:block; }
+  .contact-line{ margin:12px 0 0; text-align:center; font-size:12.5px; color:var(--ink-soft); }
+  .contact-line b{ color:var(--navy-deep); }
+
+  /* ---- Académie Cisco ---- */
+  .acad-hero{ border-radius:18px; overflow:hidden; background:linear-gradient(135deg, #062C40 0%, #0B3F5C 50%, #F26A0F 112%); color:#fff; padding:18px; position:relative; }
+  .acad-hero .kicker{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#FFD0A8; margin:0 0 6px; }
+  .acad-hero h2{ font-family:var(--font-display); font-size:19px; line-height:1.3; margin:0 0 8px; }
+  .acad-hero p{ margin:0; font-size:13px; line-height:1.55; color:#DDEBF8; }
+  .acad-chips{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .acad-chips span{ font-size:11.5px; font-weight:600; background:rgba(255,255,255,0.16); padding:4px 9px; border-radius:999px; }
+  .flyers{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0 6px; }
+  .flyers button{ border:none; padding:0; background:none; cursor:zoom-in; border-radius:14px; overflow:hidden; box-shadow:0 10px 20px -12px rgba(18,42,68,0.5); position:relative; }
+  .flyers img{ width:100%; height:190px; object-fit:cover; object-position:top; display:block; }
+  .flyers button span{ position:absolute; left:8px; bottom:8px; font-size:11px; font-weight:700; color:#fff; background:rgba(18,42,68,0.78); padding:3px 8px; border-radius:8px; }
+  .flyer-hint{ font-size:11.5px; color:#7F8EA0; text-align:center; margin:0 0 14px; }
+
+  .acad-section{ margin-top:16px; }
+  .acad-section h3{ font-family:var(--font-display); font-size:14.5px; color:var(--navy-deep); margin:0 0 4px; }
+  .acad-section .lead{ font-size:12.5px; color:var(--ink-soft); margin:0 0 10px; line-height:1.5; }
+  .price-block{ border:1.5px solid var(--line); border-radius:14px; overflow:hidden; margin-bottom:8px; }
+  .price-block .pb-head{ display:flex; justify-content:space-between; align-items:center; background:var(--soft); padding:9px 12px; font-size:12px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.04em; }
+  .price-block .pb-head b{ color:#B25A22; font-family:var(--font-display); font-size:14px; letter-spacing:0; text-transform:none; }
+  .price-block ul{ list-style:none; margin:0; padding:8px 12px 10px; display:flex; flex-direction:column; gap:5px; }
+  .price-block li{ font-size:13px; color:var(--ink); display:flex; gap:8px; }
+  .price-block li::before{ content:"↗"; color:var(--terracotta); font-weight:700; }
+  .course-row{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; padding:10px 12px; border-top:1px solid #EEF2F6; font-size:13px; }
+  .course-row:first-child{ border-top:none; }
+  .course-row .cr-name{ color:var(--ink); line-height:1.4; }
+  .course-row .cr-name small{ display:block; color:var(--ink-soft); font-size:11.5px; }
+  .course-row .cr-price{ font-family:var(--font-display); font-weight:700; color:#B25A22; white-space:nowrap; }
+  .discount{ display:flex; gap:12px; align-items:center; background:linear-gradient(135deg, #0B3A66, #1460A8); color:#fff; border-radius:14px; padding:14px; margin-top:10px; }
+  .discount .pct{ font-family:var(--font-display); font-weight:800; font-size:26px; color:#FFB37A; flex-shrink:0; }
+  .discount p{ margin:0; font-size:12.5px; line-height:1.5; color:#DDEBF8; }
+  .discount p b{ color:#fff; }
+  .schedule{ display:grid; grid-template-columns:auto 1fr; gap:6px 12px; font-size:12.5px; background:var(--soft); border-radius:14px; padding:12px 14px; }
+  .schedule dt{ font-weight:700; color:var(--navy-deep); }
+  .schedule dd{ margin:0; color:var(--ink-soft); }
+  .contact-grid{ display:flex; flex-direction:column; gap:8px; }
+  .contact-grid a, .contact-grid div{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink); text-decoration:none; background:var(--soft); padding:10px 12px; border-radius:12px; }
+  .contact-grid a:hover{ background:#EAF1F8; }
+  .contact-grid svg{ width:17px; height:17px; color:var(--blue); flex-shrink:0; }
+  .acad-note{ font-size:11.5px; color:#7F8EA0; margin:12px 0 0; line-height:1.5; }
+
+  /* ---- Aide ---- */
+  .faq details{ border:1.5px solid var(--line); border-radius:14px; padding:0 14px; margin-bottom:8px; background:#FDFCFA; }
+  .faq summary{ cursor:pointer; list-style:none; padding:13px 0; font-weight:600; font-size:13.5px; color:var(--navy-deep); display:flex; justify-content:space-between; gap:10px; }
+  .faq summary::-webkit-details-marker{ display:none; }
+  .faq summary::after{ content:"+"; font-weight:700; color:var(--blue); font-size:17px; line-height:1; }
+  .faq details[open] summary::after{ content:"–"; }
+  .faq details p, .faq details ul{ margin:0 0 13px; font-size:12.8px; line-height:1.6; color:var(--ink-soft); }
+  .faq details ul{ padding-left:18px; }
+  .recover{ background:var(--soft); border-radius:16px; padding:14px; margin:6px 0 16px; }
+  .recover h3{ margin:0 0 4px; font-family:var(--font-display); font-size:14px; color:var(--navy-deep); }
+  .recover p{ margin:0 0 10px; font-size:12.5px; color:var(--ink-soft); line-height:1.5; }
+  .recover form{ gap:10px; }
+  .recover .input-row{ background:#fff; }
+  .recover-msg{ font-size:12.5px; margin:0; font-weight:600; }
+  .section-title{ font-family:var(--font-display); font-size:14px; color:var(--navy-deep); margin:18px 0 10px; }
+
+  /* ---- Fenêtre de paiement ---- */
+  .overlay{ position:fixed; inset:0; background:rgba(12,26,42,0.55); z-index:50; display:none; align-items:flex-end; justify-content:center; padding:0; }
+  .overlay.open{ display:flex; }
+  .sheet{ background:#fff; width:100%; max-width:480px; border-radius:24px 24px 0 0; padding:22px 20px 24px; max-height:92vh; overflow-y:auto; animation:slideUp .25s ease; position:relative; }
+  @keyframes slideUp{ from{ transform:translateY(30px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  @media (min-width:560px){ .overlay{ align-items:center; padding:16px; } .sheet{ border-radius:24px; } }
+  .sheet-close{ position:absolute; top:14px; right:14px; width:34px; height:34px; border-radius:50%; border:none; background:var(--soft); cursor:pointer; color:var(--ink-soft); font-size:20px; line-height:1; }
+  .sheet h2{ font-family:var(--font-display); font-size:18px; margin:0 0 4px; color:var(--navy-deep); padding-right:40px; }
+  .sheet .sheet-sub{ font-size:13px; color:var(--ink-soft); margin:0 0 16px; }
+  .sheet-recap{ display:flex; justify-content:space-between; align-items:center; background:var(--soft); border-radius:14px; padding:12px 14px; margin-bottom:16px; font-size:13px; color:var(--ink-soft); }
+  .sheet-recap b{ display:block; color:var(--navy-deep); font-size:14px; font-family:var(--font-display); }
+  .sheet-recap .total{ font-family:var(--font-display); font-weight:800; font-size:18px; color:var(--navy-deep); }
+  .demo-flag{ display:none; background:#FFF6E8; border:1.5px dashed #E8B66E; color:#7A4A12; font-size:12px; font-weight:600; padding:8px 12px; border-radius:10px; margin-bottom:14px; }
+  .ops{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .op{ border:2px solid var(--line); background:#fff; border-radius:14px; padding:12px; cursor:pointer; display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:700; font-size:13.5px; color:var(--navy-deep); text-align:left; }
+  .op-logo{ width:40px; height:40px; border-radius:8px; flex-shrink:0; display:block; object-fit:contain; }
+  .orange-logo, .pay-logos .orange-logo{ border-radius:0; }
+  .op-logo.mtn-tile{ background:#FFCB05; padding:6px 4px; }
+  .op.active.mtn{ border-color:#E0B000; box-shadow:0 0 0 3px rgba(255,203,5,0.3); }
+  .op.active.orange{ border-color:var(--orange); box-shadow:0 0 0 3px rgba(255,121,0,0.22); }
+  .op small{ display:block; font-family:var(--font-body); font-weight:500; font-size:11px; color:var(--ink-soft); }
+  .pay-error{ display:none; background:#FDECEA; border:1.5px solid #F3C7C0; color:var(--red); font-size:12.8px; font-weight:600; padding:10px 12px; border-radius:12px; }
+  .secure-note{ display:flex; gap:8px; align-items:flex-start; font-size:11.5px; color:#7F8EA0; line-height:1.5; margin-top:2px; }
+  .secure-note svg{ width:14px; height:14px; flex-shrink:0; margin-top:2px; }
+
+  .state{ display:none; text-align:center; }
+  .state.active{ display:block; }
+  .spinner{ width:54px; height:54px; border-radius:50%; border:5px solid #E3EAF2; border-top-color:var(--blue); margin:10px auto 16px; animation:spin 1s linear infinite; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .ussd{ text-align:left; background:var(--soft); border-radius:14px; padding:12px 14px; font-size:12.8px; color:var(--ink-soft); line-height:1.6; margin:14px 0; }
+  .ussd b{ color:var(--navy-deep); }
+  .countdown{ font-size:12px; color:#7F8EA0; }
+  .big-icon{ width:60px; height:60px; border-radius:50%; margin:6px auto 14px; display:flex; align-items:center; justify-content:center; }
+  .big-icon svg{ width:30px; height:30px; }
+  .big-icon.ok{ background:#E3F5EA; color:var(--green); }
+  .big-icon.ko{ background:#FDECEA; color:var(--red); }
+  .creds{ text-align:left; border:1.5px solid var(--line); border-radius:14px; overflow:hidden; margin:14px 0; }
+  .cred-row{ display:flex; align-items:center; gap:10px; padding:11px 14px; border-top:1px solid #EEF2F6; }
+  .cred-row:first-child{ border-top:none; }
+  .cred-row span{ font-size:12px; color:var(--ink-soft); width:110px; flex-shrink:0; }
+  .cred-row code{ flex:1; font-family:'SFMono-Regular', Consolas, monospace; font-size:16px; font-weight:700; color:var(--navy-deep); letter-spacing:.04em; word-break:break-all; }
+  .cred-row button{ border:none; background:var(--soft); border-radius:8px; padding:6px 9px; font-size:11.5px; font-weight:600; color:var(--blue); cursor:pointer; }
+  .ref-line{ font-size:11.5px; color:#7F8EA0; margin:0 0 14px; }
+  .state p.msg{ font-size:13px; color:var(--ink-soft); line-height:1.55; margin:0; }
+  .state h2{ padding-right:0; }
+  .row-btns{ display:flex; flex-direction:column; gap:8px; margin-top:14px; }
+
+  /* ---- Visionneuse d'affiches ---- */
+  .lightbox{ position:fixed; inset:0; background:rgba(8,16,28,0.9); z-index:60; display:none; align-items:center; justify-content:center; padding:16px; }
+  .lightbox.open{ display:flex; }
+  .lightbox img{ max-width:100%; max-height:100%; border-radius:12px; }
+  .lightbox button{ position:absolute; top:14px; right:14px; width:40px; height:40px; border-radius:50%; border:none; background:rgba(255,255,255,0.15); color:#fff; font-size:22px; cursor:pointer; }
+
+  .signature{ margin-top:24px; height:32px; position:relative; }
+  .signature svg{ width:100%; height:100%; display:block; }
+  .glow-dot{ animation:pulseDot 2.6s ease-in-out infinite; }
+  .glow-dot.d2{ animation-delay:.4s; } .glow-dot.d3{ animation-delay:.8s; } .glow-dot.d4{ animation-delay:1.2s; }
+  @keyframes pulseDot{ 0%,100%{ opacity:.35; } 50%{ opacity:1; } }
+  .footer-note{ margin-top:20px; text-align:center; font-size:12px; color:var(--ink-soft); line-height:1.6; }
+  .pay-logos{ display:flex; justify-content:center; align-items:center; gap:8px; margin-bottom:6px; }
+  .pay-logos img{ height:26px; width:auto; border-radius:5px; display:block; }
+  .pay-logos .mtn-tile{ background:#FFCB05; padding:4px 6px; }
+  .footer-note b{ color:var(--navy); font-weight:700; letter-spacing:0.02em; }
+
+  @media (prefers-reduced-motion: reduce){ .glow-dot, .panel, .sheet, .spinner{ animation:none; } .tab-indicator{ transition:none; } }
+  @media (max-width:420px){
+    body{ padding:24px 12px; }
+    .card{ padding:30px 16px 24px; border-radius:22px; }
+    .badge-wrap img{ width:72px; height:72px; }
+    h1{ font-size:20px; }
+    .tab-btn{ font-size:11.5px; }
+    .ticket{ padding:10px 10px 10px 12px; gap:10px; }
+    .flyers img{ height:160px; }
+    .buy-actions{ flex-direction:column; }
+  }
+  .input-row input:focus-visible{ outline:none; }
+  input:focus-visible, button:focus-visible, a:focus-visible, .ticket:focus-visible, summary:focus-visible{ outline:2.5px solid var(--blue); outline-offset:2px; }
+
+  /* ---- Portail Académie Cisco ---- */
+  .brand-banner{ display:block; width:100%; max-width:380px; margin:0 auto 14px; border-radius:12px; }
+  .brand-dept::before, .brand-dept::after{ background:linear-gradient(90deg, var(--sky), var(--terracotta)); }
+  .rentree{ display:flex; gap:14px; align-items:center; margin-top:22px; padding:14px; border-radius:18px; color:#fff; text-decoration:none;
+    background:linear-gradient(120deg, #062C40 0%, #0B3F5C 55%, #F26A0F 118%); box-shadow:0 14px 28px -16px rgba(6,44,64,.7); cursor:pointer; }
+  .rentree .seal{ flex-shrink:0; width:64px; height:64px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #E43A4F 0%, #C8102E 55%, #8E0B20 100%);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1; box-shadow:0 0 0 3px rgba(255,255,255,.85), 0 8px 18px -6px rgba(200,16,46,.7); }
+  .rentree .seal small{ font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+  .rentree .seal b{ font-family:var(--font-display); font-size:22px; font-weight:800; }
+  .rentree .seal i{ font-style:normal; font-size:9.5px; font-weight:600; }
+  .rentree h3{ margin:0 0 3px; font-family:var(--font-display); font-size:14.5px; }
+  .rentree p{ margin:0; font-size:12.5px; line-height:1.45; color:#D6E9F5; }
+  .rentree p b{ color:#FFB37A; }
+  .soon{ text-align:center; padding:22px 16px; border:1.5px dashed #F7C49E; border-radius:18px; background:#FFF8F2; margin-bottom:16px; }
+  .soon h3{ margin:0 0 6px; font-family:var(--font-display); color:var(--navy-deep); font-size:15.5px; }
+  .soon p{ margin:0; font-size:13px; color:var(--ink-soft); line-height:1.55; }
+  .perks{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:0 0 16px; }
+  .perks div{ background:var(--soft); border:1px solid var(--line); border-radius:14px; padding:11px 12px; font-size:12px; color:var(--ink-soft); }
+  .perks b{ display:block; font-family:var(--font-display); font-size:16px; color:var(--navy-deep); }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="card">
+    <div class="badge-wrap">
+      <img src="./logo-academie.png" alt="Logo de l'Académie Cisco ENSPY">
+    </div>
+
+    <div class="brand">
+      <p class="brand-name">ACADÉMIE CISCO</p>
+      <div class="brand-dept">ENSPY · Polytechnique Yaoundé</div>
+    </div>
+
+    <h1 id="pageTitle">Bienvenue</h1>
+    <p class="subtitle" id="pageSubtitle">Wi-Fi de l'<strong>Académie Cisco</strong> : connectez-vous pour accéder à Internet</p>
+
+    <div class="tabs" role="tablist">
+      <div class="tab-indicator" id="tabIndicator"></div>
+      <button class="tab-btn active" data-tab="login" role="tab" type="button">Connexion</button>
+      <button class="tab-btn" data-tab="forfaits" role="tab" type="button">Forfaits</button>
+      <button class="tab-btn" data-tab="academie" role="tab" type="button">Formations<span class="dot" aria-hidden="true"></span></button>
+      <button class="tab-btn" data-tab="aide" role="tab" type="button">Aide</button>
+    </div>
+
+    <!-- ===================== CONNEXION (hotspot MikroTik) ===================== -->
+    <div class="panel active" id="panel-login">
+
+      <div class="error-box" id="errorBox">$(error)</div>
+
+      <form name="login" id="loginForm" action="$(link-login-only)" method="post">
+        <input type="hidden" name="dst" value="$(link-orig)">
+        <input type="hidden" name="popup" value="true">
+
+        <div class="field">
+          <label for="username">Nom d'utilisateur</label>
+          <div class="input-row">
+            <input type="text" id="username" name="username" placeholder="Votre identifiant" autocomplete="username" autocapitalize="none" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <div class="input-row">
+            <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+            <button type="button" class="toggle-pass" id="togglePass" aria-label="Afficher le mot de passe">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary">
+          Se connecter
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+
+        <div class="helper-row">
+          <span>Pas encore de ticket ?</span>
+          <a href="#" data-goto="forfaits">Acheter un forfait</a>
+        </div>
+      </form>
+      <!-- Formulaire réellement envoyé au routeur en CHAP : le mot de passe part haché, jamais en clair -->
+      <form id="chapForm" action="$(link-login-only)" method="post" style="display:none">
+        <input type="hidden" name="username"><input type="hidden" name="password">
+        <input type="hidden" name="dst" value="$(link-orig)"><input type="hidden" name="popup" value="true">
+      </form>
+
+      <div class="my-tickets" id="myTickets">
+        <h3>Mes 3 derniers tickets</h3>
+        <div id="myTicketsList"></div>
+        <p class="mt-note">Gardés sur cet appareil, dans ce navigateur. Notez-les aussi ailleurs : ils s'effacent si vous videz les données du navigateur.</p>
+      </div>
+
+      <a class="rentree" href="#" data-goto="academie">
+        <span class="seal"><small>Rentrée</small><b>05</b><i>Oct 2026</i></span>
+        <span><h3>Formations certifiantes Cisco</h3><p>CCNA, CyberOps, DevNet, Python, C/C++, Fortinet, Palo Alto, CCNP… <b>−35 %</b> pour les étudiants UY1 &amp; ENSPY.</p></span>
+      </a>
+
+      <p class="terms">En vous connectant, vous acceptez les <a href="#" data-goto="aide" data-anchor="conditions">conditions d'utilisation</a> du réseau.</p>
+    </div>
+
+    <!-- ===================== FORFAITS ===================== -->
+    <div class="panel" id="panel-forfaits">
+
+      <div class="pending-banner" id="pendingBanner">
+        <span>Un paiement est en attente de confirmation.</span>
+        <a class="link" id="pendingResume">Vérifier</a>
+      </div>
+
+      <div class="promo" id="promoBanner">
+        <div class="promo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2" fill="#fff"/></svg>
+        </div>
+        <div>
+          <p class="promo-title">Offre de lancement <span class="promo-pill">Durée limitée</span></p>
+          <p class="promo-text">Pour l'ouverture du réseau, les forfaits GANDAL sont proposés aux tarifs d'ouverture pendant une semaine.</p>
+          <p class="promo-end" id="promoEnd"></p>
+        </div>
+      </div>
+
+      <div class="perks">
+        <div><b>10 Mb/s</b>par ticket</div>
+        <div><b>2 appareils</b>par ticket</div>
+      </div>
+      <div class="soon" id="plansSoon">
+        <h3>Forfaits bientôt disponibles</h3>
+        <p>Les forfaits Wi-Fi de l'Académie seront annoncés ici très prochainement. En attendant, adressez-vous à l'accueil de l'Académie ou écrivez-nous sur WhatsApp.</p>
+      </div>
+      <!-- Les forfaits sont générés à partir du tableau PLANS (voir le script en bas de page). -->
+      <div id="planGroups" role="listbox" aria-label="Forfaits disponibles"></div>
+
+
+      <ol class="steps">
+        <li><b>1</b><span>Choisissez votre forfait.</span></li>
+        <li><b>2</b><span>Payez par <strong>MTN MoMo</strong> ou <strong>Orange Money</strong> et validez sur votre téléphone.</span></li>
+        <li><b>3</b><span>Votre identifiant et votre mot de passe s'affichent aussitôt. Utilisez-les sur 2 appareils au plus (téléphone et ordinateur).</span></li>
+      </ol>
+
+      <div class="buy-bar" id="buyBar">
+        <div class="buy-summary">
+          <span id="buyLabel">Aucun forfait choisi</span>
+          <span class="total" id="buyTotal"></span>
+        </div>
+        <div class="buy-actions">
+          <button type="button" class="btn-primary" id="btnPay" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+            Payer en ligne
+          </button>
+          <a class="btn-whatsapp disabled" id="btnWhatsapp" href="#" target="_blank" rel="noopener" aria-disabled="true">
+            <img class="wa-logo" src="./img/logos/whatsapp.svg" alt="" width="22" height="22">
+            WhatsApp
+          </a>
+        </div>
+      </div>
+      <p class="contact-line">Besoin d'aide ? Écrivez-nous au <b class="js-contact"></b></p>
+    </div>
+
+    <!-- ===================== ACADÉMIE CISCO ENSPY ===================== -->
+    <div class="panel" id="panel-academie">
+
+      <div class="acad-hero">
+        <p class="kicker">Académie Cisco ENSPY · Rentrée le 5 octobre 2026</p>
+        <h2>Formations certifiantes en réseaux informatiques &amp; en programmation</h2>
+        <p>L'Académie Cisco de l'École Nationale Supérieure Polytechnique de Yaoundé prépare aux certifications reconnues dans le monde entier. Elle ouvre ses portes aux élèves de Polytechnique, aux étudiants des IPES, mais aussi aux professionnels, particuliers et personnes en reconversion.</p>
+        <div class="acad-chips">
+          <span>Rentrée : 5 octobre 2026</span>
+          <span>Salle Cisco · Dépt. GI</span>
+          <span>−35 % étudiants UY1 &amp; ENSPY</span>
+        </div>
+      </div>
+
+      <div class="flyers">
+        <button type="button" data-full="./img/cisco1-hd.jpg"><img src="./img/cisco1.jpg" alt="Affiche : formations pour les élèves de Polytechnique et des IPES" loading="lazy"><span>Polytechnique &amp; IPES</span></button>
+        <button type="button" data-full="./img/cisco2-hd.jpg"><img src="./img/cisco2.jpg" alt="Affiche : formations ouvertes à tous" loading="lazy"><span>Ouvert à tous</span></button>
+      </div>
+      <p class="flyer-hint">Touchez une affiche pour l'agrandir.</p>
+
+      <div class="acad-section">
+        <h3>Pour les élèves de Polytechnique et des IPES</h3>
+        <p class="lead">Des parcours courts pour développer vos compétences et préparer votre avenir.</p>
+        <div class="price-block">
+          <div class="pb-head">Cybersécurité <b>50 000 FCFA</b></div>
+          <ul><li>Cisco Certificate in Ethical Hacking</li><li>CyberOps Associate</li><li>Network Security</li></ul>
+        </div>
+        <div class="price-block">
+          <div class="pb-head">Réseaux &amp; automatisation <b>50 000 FCFA</b></div>
+          <ul><li>CCNA R&amp;S</li><li>DevNet Associate</li></ul>
+        </div>
+        <div class="price-block">
+          <div class="pb-head">Programmation &amp; anglais <b>25 000 FCFA</b></div>
+          <ul><li>English for IT 1 &amp; 2</li><li>Les Essentiels de Python 1 &amp; 2</li><li>Programmation C Essentials 1 &amp; 2 · C Advanced</li><li>Programmation C++ Essentials 1 &amp; 2 · C++ Advanced</li></ul>
+        </div>
+      </div>
+
+      <div class="acad-section">
+        <h3>Ouvert à tous : réseaux et sécurité</h3>
+        <p class="lead">Étudiants externes, professionnels, particuliers ou en reconversion.</p>
+        <div class="price-block">
+          <div class="course-row"><span class="cr-name">Fortinet NSE4 ou FCP<small>Infrastructure et sécurité</small></span><span class="cr-price">300 000 F</span></div>
+          <div class="course-row"><span class="cr-name">PCNSA<small>Palo Alto Certified Network Security Administrator</small></span><span class="cr-price">300 000 F</span></div>
+          <div class="course-row"><span class="cr-name">CCNA + PCNSA<small>4 mois</small></span><span class="cr-price">350 000 F</span></div>
+          <div class="course-row"><span class="cr-name">CCNA + NSE4 ou FCP<small>4 mois</small></span><span class="cr-price">350 000 F</span></div>
+          <div class="course-row"><span class="cr-name">CyberOps + LPIC-1<small>4 mois</small></span><span class="cr-price">350 000 F</span></div>
+          <div class="course-row"><span class="cr-name">CCNP Enterprise<small>6 mois</small></span><span class="cr-price">500 000 F</span></div>
+        </div>
+        <div class="discount">
+          <span class="pct">−35 %</span>
+          <p><b>Étudiants UY1 &amp; ENSPY :</b> les étudiants internes qui suivent la formation en présentiel bénéficient de 35 % de réduction sur les frais de formation.</p>
+        </div>
+      </div>
+
+      <div class="acad-section">
+        <h3>Horaires au choix</h3>
+        <dl class="schedule">
+          <dt>Matin</dt><dd>09h30 – 12h00 · 4 jours/semaine</dd>
+          <dt>Après-midi</dt><dd>14h00 – 16h30 · 4 jours/semaine</dd>
+          <dt>Soir</dt><dd>17h30 – 19h30 · 4 jours/semaine</dd>
+          <dt>CCNP</dt><dd>Samedi · 09h30 – 14h30</dd>
+        </dl>
+      </div>
+
+      <div class="acad-section">
+        <h3>S'inscrire ou se renseigner</h3>
+        <div class="contact-grid">
+          <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>ENSPY, Département de Génie Informatique, salle Cisco</div>
+          <a href="mailto:contact@acadenspy.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 6l-10 7L2 6"/></svg>contact@acadenspy.com</a>
+          <a href="tel:+237699647176"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>+237 699 647 176</a>
+          <a href="tel:+237695905545"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>+237 695 905 545</a>
+          <a href="tel:+237675623368"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1.9.4 1.8.7 2.7a2 2 0 0 1-.5 2.1L8 9.8a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.7.7a2 2 0 0 1 1.7 2z"/></svg>+237 675 623 368</a>
+        </div>
+        <p class="acad-note">L'Académie Cisco ENSPY fait partie du programme mondial Cisco Networking Academy, créé par Cisco en 1997. Elle a notamment déjà organisé des sessions CCNP Enterprise au Département de Génie Informatique. Les tarifs et dates sont ceux des affiches de l'académie : confirmez-les auprès d'elle avant de vous inscrire.</p>
+      </div>
+    </div>
+
+    <!-- ===================== AIDE ===================== -->
+    <div class="panel" id="panel-aide">
+
+      <div class="recover">
+        <h3>Retrouver un ticket acheté</h3>
+        <p>Paiement validé mais page fermée ? Entrez la référence reçue et le numéro qui a payé.</p>
+        <form id="recoverForm" novalidate>
+          <div class="input-row"><input type="text" id="recoverRef" placeholder="Référence (ex. GD-…)" autocapitalize="characters" required></div>
+          <div class="input-row"><span class="prefix">+237</span><input type="tel" id="recoverPhone" placeholder="6XX XX XX XX" inputmode="numeric" maxlength="12" required></div>
+          <button type="submit" class="btn-ghost">Rechercher mon ticket</button>
+          <p class="recover-msg" id="recoverMsg"></p>
+        </form>
+      </div>
+
+      <h3 class="section-title">Questions fréquentes</h3>
+      <div class="faq">
+        <details>
+          <summary>Comment acheter un forfait ?</summary>
+          <p>Ouvrez l'onglet <b>Forfaits</b>, choisissez une offre puis touchez <b>Payer en ligne</b>. Entrez votre numéro MTN MoMo ou Orange Money et validez le paiement sur votre téléphone avec votre code secret. Vos identifiants s'affichent dès que le paiement est confirmé. Vous pouvez aussi commander sur WhatsApp et payer auprès d'un agent.</p>
+        </details>
+        <details>
+          <summary>Je n'ai pas reçu la demande de paiement</summary>
+          <ul>
+            <li><b>MTN MoMo :</b> composez <b>*126#</b> et consultez les approbations en attente.</li>
+            <li><b>Orange Money :</b> composez <b>#150*50#</b> pour valider le paiement en attente.</li>
+            <li>Vérifiez que votre solde couvre le montant du forfait.</li>
+          </ul>
+        </details>
+        <details>
+          <summary>J'ai payé mais je n'ai pas mes identifiants</summary>
+          <p>Utilisez « Retrouver un ticket acheté » ci-dessus avec la référence affichée lors du paiement. Si le problème persiste, écrivez-nous sur WhatsApp au <b class="js-contact"></b> en donnant la référence et le numéro qui a payé : un agent vous remet votre ticket.</p>
+        </details>
+        <details>
+          <summary>Sur combien d'appareils puis-je utiliser un ticket ?</summary>
+          <p>Un ticket s'utilise sur <b>2 appareils en même temps</b> au plus, par exemple votre téléphone et votre ordinateur. Pour un 3e appareil, déconnectez d'abord l'un des deux.</p>
+        </details>
+        <details>
+          <summary>Quel débit vais-je avoir ?</summary>
+          <p>Chaque ticket dispose de <b>10 Mb/s</b>, partagés entre ses appareils : seul, un appareil profite des 10 Mb/s ; à deux, ils se les partagent. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
+        </details>
+        <details>
+          <summary>Quand mon forfait commence-t-il ?</summary>
+          <p>La durée démarre à votre première connexion. Les conditions précises de chaque forfait (durée, volume) seront indiquées dans l'onglet <b>Forfaits</b>.</p>
+        </details>
+        <details>
+          <summary>Comment voir ce qu'il me reste ?</summary>
+          <p>Une fois connecté, la page d'état du Wi-Fi affiche le temps de connexion et les données utilisées. Gardez-la ouverte ou revenez sur cette adresse pour la consulter.</p>
+        </details>
+        <details>
+          <summary>Comment économiser mes données ?</summary>
+          <ul>
+            <li>Désactivez les mises à jour automatiques et la sauvegarde des photos dans le cloud.</li>
+            <li>Réduisez la qualité des vidéos (YouTube, TikTok, Facebook).</li>
+            <li>Pour les gros téléchargements (Packet Tracer, images de machines virtuelles), connectez un seul appareil : il profite alors des 10 Mb/s.</li>
+          </ul>
+        </details>
+        <details id="conditions">
+          <summary>Conditions d'utilisation</summary>
+          <ul>
+            <li>Un ticket est personnel. Ne communiquez pas votre mot de passe.</li>
+            <li>Les forfaits ne sont ni remboursables ni échangeables une fois utilisés.</li>
+            <li>Le téléchargement illégal, le piratage et toute activité contraire à la loi camerounaise sont interdits sur le réseau.</li>
+            <li>L'Académie et GANDAL peuvent suspendre un ticket en cas d'abus ou d'usage qui gêne les autres utilisateurs.</li>
+            <li>Le débit peut varier selon le nombre d'utilisateurs connectés et la qualité de la liaison.</li>
+          </ul>
+        </details>
+      </div>
+
+      <a class="btn-whatsapp" id="helpWhatsapp" href="#" target="_blank" rel="noopener" style="margin-top:14px;">
+        <img class="wa-logo" src="./img/logos/whatsapp.svg" alt="" width="22" height="22">
+        Contacter un agent sur WhatsApp
+      </a>
+    </div>
+
+    <div class="signature" aria-hidden="true">
+      <svg viewBox="0 0 400 32" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="sunGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#F0B15E"/>
+            <stop offset="100%" stop-color="#D9793D"/>
+          </linearGradient>
+        </defs>
+        <line x1="60" y1="30" x2="60" y2="12" stroke="#E7CBAE" stroke-width="1.4"/>
+        <line x1="60" y1="12" x2="30" y2="4" stroke="#E7CBAE" stroke-width="1.4"/>
+        <line x1="60" y1="12" x2="90" y2="3" stroke="#E7CBAE" stroke-width="1.4"/>
+        <line x1="340" y1="30" x2="340" y2="12" stroke="#E7CBAE" stroke-width="1.4"/>
+        <line x1="340" y1="12" x2="370" y2="4" stroke="#E7CBAE" stroke-width="1.4"/>
+        <line x1="340" y1="12" x2="310" y2="3" stroke="#E7CBAE" stroke-width="1.4"/>
+        <path d="M0 28 Q200 -8 400 28" fill="none" stroke="url(#sunGrad)" stroke-width="2"/>
+        <circle class="glow-dot d1" cx="30" cy="4" r="2" fill="#D9793D"/>
+        <circle class="glow-dot d2" cx="90" cy="3" r="2" fill="#F0B15E"/>
+        <circle class="glow-dot d3" cx="310" cy="3" r="2" fill="#F0B15E"/>
+        <circle class="glow-dot d4" cx="370" cy="4" r="2" fill="#D9793D"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="footer-note">
+    <div class="pay-logos"><img class="mtn-tile" src="./img/logos/mtn.svg" alt="MTN Mobile Money" height="26"><img class="orange-logo" src="./img/logos/orange.svg" alt="Orange Money" height="26"></div>
+    Wi-Fi de l'<b>Académie Cisco ENSPY</b>, opéré par GANDAL.<br>Département de Génie Informatique, salle Cisco. Besoin d'aide ? Contactez un agent sur WhatsApp.
+  </div>
+</div>
+
+<!-- ===================== FENÊTRE DE PAIEMENT ===================== -->
+<div class="overlay" id="payOverlay" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="sheet">
+    <button type="button" class="sheet-close" id="payClose" aria-label="Fermer">×</button>
+
+    <!-- Étape 1 : opérateur + numéro -->
+    <div class="state active" id="st-form" style="text-align:left;">
+      <h2 id="payTitle">Paiement Mobile Money</h2>
+      <p class="sheet-sub">Vous recevrez une demande de validation sur votre téléphone.</p>
+      <div class="demo-flag" id="demoFlag">Mode démonstration : aucun paiement réel n'est effectué.</div>
+      <div class="sheet-recap"><div><b id="payPlan"></b><span id="payPlanDesc"></span></div><span class="total" id="payAmount"></span></div>
+
+      <form id="payForm" novalidate>
+        <div class="field">
+          <label>Opérateur</label>
+          <div class="ops">
+            <button type="button" class="op mtn" data-op="mtn"><img class="op-logo mtn-tile" src="./img/logos/mtn.svg" alt="" width="40" height="40"><span>MTN MoMo<small>Validation *126#</small></span></button>
+            <button type="button" class="op orange" data-op="orange"><img class="op-logo orange-logo" src="./img/logos/orange.svg" alt="" width="40" height="40"><span>Orange Money<small>Validation #150*50#</small></span></button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="payPhone">Numéro qui paie</label>
+          <div class="input-row"><span class="prefix">+237</span><input type="tel" id="payPhone" placeholder="6XX XX XX XX" inputmode="numeric" maxlength="12" autocomplete="tel-national" required></div>
+        </div>
+        <div class="pay-error" id="payError"></div>
+        <button type="submit" class="btn-primary" id="paySubmit">Payer <span id="paySubmitAmount"></span></button>
+        <div class="secure-note">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          <span>Ne communiquez jamais votre code secret Mobile Money. Vous le saisissez uniquement sur votre téléphone, jamais sur cette page.</span>
+        </div>
+      </form>
+    </div>
+
+    <!-- Étape 2 : attente de validation -->
+    <div class="state" id="st-wait">
+      <div class="spinner"></div>
+      <h2>Validez sur votre téléphone</h2>
+      <p class="msg">Une demande de <b id="waitAmount"></b> a été envoyée au <b id="waitPhone"></b>. Entrez votre code secret pour confirmer.</p>
+      <div class="ussd" id="waitUssd"></div>
+      <p class="ref-line">Référence : <b id="waitRef"></b></p>
+      <p class="countdown" id="waitCountdown"></p>
+      <div class="row-btns">
+        <button type="button" class="btn-ghost" id="waitCheck">J'ai validé, vérifier maintenant</button>
+      </div>
+    </div>
+
+    <!-- Étape 3 : succès -->
+    <div class="state" id="st-ok">
+      <div class="big-icon ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <h2>Paiement confirmé</h2>
+      <p class="msg">Voici vos identifiants pour le <b id="okPlan"></b>. Ils sont aussi enregistrés sur ce téléphone.</p>
+      <div class="creds">
+        <div class="cred-row"><span>Identifiant</span><code id="okUser"></code><button type="button" data-copy="okUser">Copier</button></div>
+        <div class="cred-row"><span>Mot de passe</span><code id="okPass"></code><button type="button" data-copy="okPass">Copier</button></div>
+      </div>
+      <p class="ref-line">Référence : <b id="okRef"></b>. Faites une capture d'écran.</p>
+      <p class="ref-line">Pour vous déconnecter ou changer de forfait plus tard, ouvrez <b>http://$(hostname)</b></p>
+      <div class="row-btns">
+        <button type="button" class="btn-primary" id="okConnect">Me connecter maintenant
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Étape 4 : échec / problème -->
+    <div class="state" id="st-ko">
+      <div class="big-icon ko"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+      <h2 id="koTitle">Paiement non abouti</h2>
+      <p class="msg" id="koMsg"></p>
+      <div class="row-btns">
+        <button type="button" class="btn-primary" id="koRetry">Réessayer</button>
+        <a class="btn-ghost" id="koWhatsapp" href="#" target="_blank" rel="noopener">Contacter un agent</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Affiche agrandie">
+  <button type="button" id="lightboxClose" aria-label="Fermer">×</button>
+  <img id="lightboxImg" alt="Affiche de l'Académie Cisco ENSPY">
+</div>
+
+<script>
+  /* ======================= CONFIGURATION ======================= */
+  // Numéro WhatsApp (format international, sans +, sans espaces).
+  var WHATSAPP_NUMBER = '237679696766';
+  // Promotion : mettre false pour masquer le bandeau.
+  var PROMO_ACTIVE = false;
+  // Date de fin de la promo, au format AAAA-MM-JJ. Laisser '' pour ne pas afficher de date.
+  // Le bandeau disparaît automatiquement le lendemain de cette date.
+  var PROMO_END = '2026-11-21';
+
+  // Paiement en ligne.
+  //  'demo' : simule un paiement (pour tester la page, AUCUN argent n'est encaissé)
+  //  'live' : paiement réel via le serveur GANDAL (dossier serveur/)
+  //  'off'  : masque le bouton « Payer en ligne », seul WhatsApp reste
+  var PAYMENT_MODE = 'off';   // à passer en 'live' quand les forfaits de l'Académie seront créés sur le serveur
+  // Adresse de api.php sur le serveur (voir serveur/README.md).
+  // Les clés IZI Spot se mettent dans le fichier .env du serveur, JAMAIS ici.
+  var PAYMENT_API_URL = 'https://51-21-209-22.sslip.io/api.php';
+
+  // Forfaits (identiques à l'affiche). L'id doit exister dans serveur/src/config.php,
+  // et c'est le prix de config.php qui est réellement facturé.
+  // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php) ;
+  // les illimités à volume passent ensuite à « rate_after » (2 Mb/s), indiqué dans desc.
+  // Forfaits du portail de l'Académie : à définir (10 Mb/s et 2 appareils par ticket).
+  var PLANS = [];
+  /* ============================================================== */
+
+  var GROUPS = [
+    { key:'1', title:'1 appareil', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>' }
+  ];
+  var BOLT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>';
+  function speedChip(p){ return p.speed ? '<span class="speed' + (p.speed >= 5 ? ' fast' : '') + '">' + BOLT + p.speed + ' Mb/s</span>' : ''; }
+
+  function byId(id){ return document.getElementById(id); }
+  // Le routeur MikroTik remplace toute suite « dollar + parenthèse » par ses variables,
+  // y compris dans ce script : n'en écrivez jamais ici.
+  var UNSET = '$' + '(';  // début d'une variable MikroTik non remplacée
+  function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F'; }
+  function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+  function waLink(msg){ return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg); }
+  function store(key, val){
+    try {
+      if (val === undefined) { return JSON.parse(localStorage.getItem(key) || 'null'); }
+      if (val === null) { localStorage.removeItem(key); } else { localStorage.setItem(key, JSON.stringify(val)); }
+    } catch(e){ return null; }
+  }
+
+  // ---- Message d'erreur MikroTik ----
+  (function(){
+    var box = byId('errorBox');
+    var txt = box.textContent.trim();
+    if (txt !== '' && txt.indexOf(UNSET) !== 0) { box.style.display = 'block'; }
+  })();
+
+  // ---- Numéro de contact ----
+  var n = WHATSAPP_NUMBER;
+  var prettyNumber = '+' + n.slice(0,3) + ' ' + n.slice(3,4) + ' ' + n.slice(4,6) + ' ' + n.slice(6,8) + ' ' + n.slice(8,10) + ' ' + n.slice(10);
+  document.querySelectorAll('.js-contact').forEach(function(el){ el.textContent = prettyNumber; });
+  byId('helpWhatsapp').href = waLink("Bonjour, j'ai besoin d'aide pour le Wi-Fi de l'Académie Cisco.");
+
+  // ---- Bandeau de promotion ----
+  (function(){
+    var banner = byId('promoBanner');
+    var show = PROMO_ACTIVE;
+    if (show && PROMO_END) {
+      var end = new Date(PROMO_END + 'T23:59:59');
+      if (!isNaN(end)) {
+        if (new Date() > end) { show = false; }
+        else { byId('promoEnd').textContent = "Offre valable jusqu'au " + end.toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }) + '.'; }
+      }
+    }
+    if (!show) { banner.style.display = 'none'; }
+  })();
+
+  // ---- Pas encore de forfaits : barre d'achat et étapes masquées ----
+  if (!PLANS.length) { byId('buyBar').style.display = 'none'; document.querySelector('#panel-forfaits .steps').style.display = 'none'; }
+  else { byId('plansSoon').style.display = 'none'; }
+
+  // ---- Affichage des forfaits ----
+  (function(){
+    var html = '';
+    GROUPS.forEach(function(g){
+      var items = PLANS.filter(function(p){ return p.group === g.key; });
+      if (!items.length) return;
+      html += '<div class="group"><div class="group-head' + (g.special ? ' special' : '') + '"><span class="gh-icon">' + g.icon + '</span>' + g.title + '</div>' +
+        '<div class="speed-legend"><span><span class="speed fast">' + BOLT + '5 Mb/s</span>forfaits en Go, illimités jusqu\'au volume inclus</span><span><span class="speed">' + BOLT + '2 Mb/s</span>illimité 1 jour, illimités au-delà du volume</span></div><div class="tickets">';
+      items.forEach(function(p){
+        html += '<div class="ticket' + (g.special ? ' special' : '') + '" data-id="' + p.id + '" role="option" tabindex="0" aria-selected="false">' +
+          '<span class="ticket-radio"></span>' +
+          '<div class="ticket-info"><div class="ticket-duration">' + esc(p.name) + ' <span class="per">/ ' + esc(p.period) + '</span>' +
+          (p.tag ? '<span class="ticket-tag">' + esc(p.tag) + '</span>' : '') + '</div>' +
+          '<div class="ticket-desc">' + speedChip(p) + (p.desc ? esc(p.desc) : '') + '</div></div>' +
+          '<div class="ticket-price">' + fmt(p.price) + '</div></div>';
+      });
+      html += '</div></div>';
+    });
+    byId('planGroups').innerHTML = html;
+  })();
+
+  function planById(id){ for (var i = 0; i < PLANS.length; i++) { if (PLANS[i].id === id) return PLANS[i]; } return null; }
+  function planLabel(p){ return p.name + ' / ' + p.period; }
+
+  // ---- Onglets ----
+  var TAB_ORDER = ['login', 'forfaits', 'academie', 'aide'];
+  var tabs = document.querySelectorAll('.tab-btn');
+  var titles = {
+    login:    ['Bienvenue', "Wi-Fi de l'<strong>Académie Cisco</strong> : connectez-vous pour accéder à Internet"],
+    forfaits: ['Choisissez votre forfait', 'Payez par <strong>Mobile Money</strong> et connectez-vous aussitôt'],
+    academie: ['Nos formations', 'Certifications en <strong>réseaux</strong>, <strong>cybersécurité</strong> et <strong>programmation</strong>'],
+    aide:     ["Besoin d'aide ?", 'Questions fréquentes, ticket perdu, <strong>contact</strong>']
+  };
+  /* ---- Animation « verre liquide » de la barre d'onglets ---- */
+  var currentTab = 'login';
+  var REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var CAN_ANIMATE = !REDUCED && typeof Element !== 'undefined' && !!Element.prototype.animate;
+
+  // La goutte de verre s'étire pendant le trajet puis rebondit en se posant.
+  function liquidIndicator(fromIdx, toIdx){
+    var ind = byId('tabIndicator');
+    var a = fromIdx * 100, b = toIdx * 100, mid = (a + b) / 2;
+    var stretch = 1 + Math.min(Math.abs(toIdx - fromIdx), 3) * 0.28;
+    ind.style.transform = 'translateX(' + b + '%)';
+    if (!CAN_ANIMATE || fromIdx === toIdx) return;
+    ind.animate([
+      { transform:'translateX(' + a + '%) scale(1,1)' },
+      { transform:'translateX(' + mid + '%) scale(' + stretch + ',0.78)', offset:0.42 },
+      { transform:'translateX(' + b + '%) scale(0.9,1.1)', offset:0.7 },
+      { transform:'translateX(' + b + '%) scale(1.04,0.96)', offset:0.86 },
+      { transform:'translateX(' + b + '%) scale(1,1)' }
+    ], { duration:680, easing:'cubic-bezier(.3,.7,.2,1)' });
+    ind.classList.remove('shine'); void ind.offsetWidth; ind.classList.add('shine');
+  }
+
+  function activate(tabName, anchor){
+    var fromIdx = TAB_ORDER.indexOf(currentTab), toIdx = TAB_ORDER.indexOf(tabName);
+    currentTab = tabName;
+    tabs.forEach(function(t){ t.classList.toggle('active', t.dataset.tab === tabName); t.setAttribute('aria-selected', t.dataset.tab === tabName); });
+    TAB_ORDER.forEach(function(k){ byId('panel-' + k).classList.toggle('active', k === tabName); });
+    liquidIndicator(fromIdx, toIdx);
+    byId('pageTitle').textContent = titles[tabName][0];
+    byId('pageSubtitle').innerHTML = titles[tabName][1];
+    if (anchor) {
+      var el = byId(anchor);
+      if (el) { if (el.tagName === 'DETAILS') el.open = true; el.scrollIntoView({ behavior:'smooth', block:'center' }); }
+    }
+  }
+  tabs.forEach(function(btn){ btn.addEventListener('click', function(){ activate(btn.dataset.tab); }); });
+  document.querySelectorAll('[data-goto]').forEach(function(a){
+    a.addEventListener('click', function(e){ e.preventDefault(); activate(a.dataset.goto, a.dataset.anchor); });
+  });
+
+  // ---- Afficher / masquer le mot de passe ----
+  byId('togglePass').addEventListener('click', function(){
+    var pw = byId('password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+  });
+
+  // ---- Sélection du forfait ----
+  var selected = null;
+  function selectTicket(el){
+    document.querySelectorAll('.ticket').forEach(function(t){ t.classList.remove('selected'); t.setAttribute('aria-selected', 'false'); });
+    el.classList.add('selected'); el.setAttribute('aria-selected', 'true');
+    selected = planById(el.dataset.id);
+    byId('buyLabel').innerHTML = '<b>' + esc(planLabel(selected)) + '</b>';
+    byId('buyTotal').textContent = fmt(selected.price);
+    byId('btnPay').disabled = (PAYMENT_MODE === 'off');
+    var wa = byId('btnWhatsapp');
+    wa.href = waLink('Bonjour GANDAL, je souhaite commander le forfait ' + planLabel(selected) + ' (' + selected.speed + ' Mb/s) au prix de ' + fmt(selected.price) + '.');
+    wa.classList.remove('disabled'); wa.removeAttribute('aria-disabled');
+  }
+  document.querySelectorAll('.ticket').forEach(function(t){
+    t.addEventListener('click', function(){ selectTicket(t); });
+    t.addEventListener('keydown', function(e){ if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectTicket(t); } });
+  });
+  if (PAYMENT_MODE === 'off') { byId('btnPay').style.display = 'none'; }
+
+  /* ================= PAIEMENT MOBILE MONEY ================= */
+  var overlay = byId('payOverlay');
+  var op = null, pollTimer = null, countdownTimer = null, current = null;
+
+  function showState(name){
+    ['form','wait','ok','ko'].forEach(function(s){ byId('st-' + s).classList.toggle('active', s === name); });
+  }
+  function openSheet(){ overlay.classList.add('open'); document.body.classList.add('locked'); }
+  function closeSheet(){
+    overlay.classList.remove('open'); document.body.classList.remove('locked');
+    stopPolling();
+  }
+  function stopPolling(){ clearTimeout(pollTimer); clearInterval(countdownTimer); pollTimer = null; }
+
+  // Détection de l'opérateur d'après le numéro camerounais (9 chiffres commençant par 6).
+  function detectOp(num){
+    if (/^6(7\d|5[0-4]|8\d)/.test(num)) return 'mtn';
+    if (/^6(9\d|5[5-9]|40)/.test(num)) return 'orange';
+    return null;
+  }
+  function cleanPhone(v){ v = v.replace(/\D/g, ''); if (v.indexOf('237') === 0 && v.length === 12) v = v.slice(3); return v; }
+  function setOp(o){ op = o; document.querySelectorAll('.op').forEach(function(b){ b.classList.toggle('active', b.dataset.op === o); }); }
+  document.querySelectorAll('.op').forEach(function(b){ b.addEventListener('click', function(){ setOp(b.dataset.op); }); });
+  byId('payPhone').addEventListener('input', function(){ var d = detectOp(cleanPhone(this.value)); if (d) setOp(d); });
+
+  function payError(msg){ var e = byId('payError'); e.textContent = msg || ''; e.style.display = msg ? 'block' : 'none'; }
+
+  byId('btnPay').addEventListener('click', function(){
+    if (!selected) return;
+    byId('payPlan').textContent = planLabel(selected);
+    byId('payPlanDesc').textContent = selected.desc && selected.desc.indexOf('Mb/s') >= 0 ? selected.desc : 'Débit ' + selected.speed + ' Mb/s' + (selected.desc ? ' · ' + selected.desc : '');
+    byId('payAmount').textContent = fmt(selected.price);
+    byId('paySubmitAmount').textContent = fmt(selected.price);
+    byId('demoFlag').style.display = PAYMENT_MODE === 'demo' ? 'block' : 'none';
+    payError('');
+    showState('form');
+    openSheet();
+    setTimeout(function(){ byId('payPhone').focus(); }, 250);
+  });
+  byId('payClose').addEventListener('click', closeSheet);
+  overlay.addEventListener('click', function(e){ if (e.target === overlay) closeSheet(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') { closeSheet(); closeLightbox(); } });
+
+  // Appel au serveur de paiement (ou simulation en mode démo).
+  function api(action, payload){
+    if (PAYMENT_MODE === 'demo') return demoApi(action, payload);
+    return fetch(PAYMENT_API_URL + '?action=' + action, {
+      method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload)
+    }).then(function(r){
+      return r.json().catch(function(){ return { ok:false, error:'Réponse invalide du serveur (' + r.status + ').' }; });
+    }, function(){
+      return { ok:false, error:"Le serveur de paiement est injoignable. Vérifiez qu'il est autorisé dans le walled-garden du hotspot." };
+    });
+  }
+
+  var demoOrders = {};
+  function demoApi(action, p){
+    return new Promise(function(resolve){
+      setTimeout(function(){
+        if (action === 'init') {
+          var ref = 'GD-DEMO-' + Math.random().toString(36).slice(2, 8).toUpperCase();
+          demoOrders[ref] = { start: Date.now(), plan: p.plan };
+          resolve({ ok:true, reference:ref, token:'demo', status:'pending' });
+        } else {
+          var o = demoOrders[p.reference];
+          if (!o) return resolve({ ok:false, error:'Référence inconnue (mode démo).' });
+          if (Date.now() - o.start < 6000) return resolve({ ok:true, status:'pending' });
+          resolve({ ok:true, status:'complete', plan:o.plan, username:'demo' + p.reference.slice(-4).toLowerCase(), password:'123456' });
+        }
+      }, 700);
+    });
+  }
+
+  byId('payForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var phone = cleanPhone(byId('payPhone').value);
+    if (!/^6\d{8}$/.test(phone)) return payError('Entrez un numéro camerounais à 9 chiffres, par exemple 677 12 34 56.');
+    if (!op) return payError('Choisissez votre opérateur : MTN MoMo ou Orange Money.');
+    payError('');
+    var btn = byId('paySubmit'); btn.disabled = true; btn.firstChild.textContent = 'Envoi de la demande… ';
+    api('init', { plan: selected.id, phone: phone, operator: op }).then(function(res){
+      btn.disabled = false; btn.firstChild.textContent = 'Payer ';
+      if (!res.ok) return payError(res.error || 'Le paiement n\'a pas pu être lancé. Réessayez.');
+      current = { reference: res.reference, token: res.token, plan: selected.id, phone: phone, operator: op, started: Date.now() };
+      store('ws_pending', current);
+      // Si l'opérateur exige une page de paiement externe, on y redirige.
+      if (res.redirect_url) { window.location.href = res.redirect_url; return; }
+      startWaiting();
+    });
+  });
+
+  function startWaiting(){
+    var p = planById(current.plan);
+    byId('waitAmount').textContent = p ? fmt(p.price) : '';
+    byId('waitPhone').textContent = '+237 ' + current.phone.replace(/(\d)(\d{2})(\d{2})(\d{2})(\d{2})/, '$1 $2 $3 $4 $5');
+    byId('waitRef').textContent = current.reference;
+    byId('waitUssd').innerHTML = current.operator === 'mtn'
+      ? 'Pas de notification ? Composez <b>*126#</b> sur votre téléphone MTN puis ouvrez les approbations en attente.'
+      : 'Pas de notification ? Composez <b>#150*50#</b> sur votre téléphone Orange pour valider le paiement en attente.';
+    showState('wait');
+    var deadline = current.started + 5 * 60 * 1000;
+    clearInterval(countdownTimer);
+    countdownTimer = setInterval(function(){
+      var s = Math.max(0, Math.round((deadline - Date.now()) / 1000));
+      byId('waitCountdown').textContent = 'Vérification automatique… (' + Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) + ')';
+    }, 1000);
+    poll(deadline);
+  }
+
+  function poll(deadline){
+    clearTimeout(pollTimer);
+    checkStatus().then(function(done){
+      if (done) return;
+      if (Date.now() > deadline) {
+        stopPolling();
+        return fail('Délai dépassé', "Nous n'avons pas reçu la confirmation. Si vous avez été débité, utilisez « Retrouver un ticket » dans l'onglet Aide avec la référence " + current.reference + '.');
+      }
+      pollTimer = setTimeout(function(){ poll(deadline); }, 4000);
+    });
+  }
+
+  function checkStatus(){
+    return api('status', { reference: current.reference, token: current.token }).then(function(res){
+      if (!res.ok) { return false; }
+      if (res.status === 'complete' && res.username) { success(res); return true; }
+      if (res.status === 'paid_no_stock') {
+        stopPolling(); store('ws_pending', null);
+        fail('Paiement reçu', 'Votre paiement est confirmé mais aucun ticket n\'est disponible pour le moment. Contactez un agent sur WhatsApp avec la référence ' + current.reference + ' : il vous remettra vos identifiants.');
+        return true;
+      }
+      if (res.status === 'failed' || res.status === 'canceled' || res.status === 'expired') {
+        stopPolling(); store('ws_pending', null);
+        fail('Paiement non abouti', res.message || 'Le paiement a été refusé ou annulé. Aucun montant n\'a été prélevé.');
+        return true;
+      }
+      return false;
+    });
+  }
+  byId('waitCheck').addEventListener('click', function(){ checkStatus(); });
+
+  function success(res){
+    stopPolling();
+    var p = planById(res.plan || current.plan);
+    byId('okPlan').textContent = p ? 'forfait ' + planLabel(p) : 'forfait';
+    byId('okUser').textContent = res.username;
+    byId('okPass').textContent = res.password;
+    byId('okRef').textContent = current.reference;
+    saveTicket({ ref: current.reference, plan: p ? planLabel(p) : '', user: res.username, pass: res.password, date: new Date().toISOString() });
+    store('ws_pending', null);
+    showState('ok');
+  }
+  function fail(title, msg){
+    byId('koTitle').textContent = title;
+    byId('koMsg').textContent = msg;
+    byId('koWhatsapp').href = waLink('Bonjour GANDAL, problème de paiement. Référence : ' + (current ? current.reference : '') + ', numéro : ' + (current ? current.phone : '') + '.');
+    showState('ko');
+    openSheet();
+  }
+  byId('koRetry').addEventListener('click', function(){ payError(''); showState('form'); });
+
+  // Copier dans le presse-papiers
+  document.querySelectorAll('[data-copy]').forEach(function(b){
+    b.addEventListener('click', function(){
+      var txt = byId(b.dataset.copy).textContent;
+      var done = function(){ b.textContent = 'Copié'; setTimeout(function(){ b.textContent = 'Copier'; }, 1500); };
+      if (navigator.clipboard) { navigator.clipboard.writeText(txt).then(done, function(){}); }
+      else { var t = document.createElement('textarea'); t.value = txt; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); done(); } catch(e){} document.body.removeChild(t); }
+    });
+  });
+
+  // Connexion directe avec les identifiants reçus
+  // ---- Connexion en CHAP : le routeur fournit chap-id et chap-challenge, on envoie
+  // MD5(chap-id + mot de passe + challenge). Sans CHAP sur le routeur, envoi classique.
+  var CHAP_ID = '$(chap-id)', CHAP_CHALLENGE = '$(chap-challenge)';
+  function chapOn(){ return CHAP_ID !== '' && CHAP_ID.indexOf(UNSET) !== 0; }
+  function md5hex(s){
+    var K = [], S = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21], i, j;
+    for (i = 0; i < 64; i++) { K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296) | 0; }
+    var n = s.length, nb = ((n + 8) >> 6) + 1, x = [];
+    for (i = 0; i < nb * 16; i++) { x[i] = 0; }
+    for (i = 0; i < n; i++) { x[i >> 2] |= (s.charCodeAt(i) & 255) << ((i % 4) * 8); }
+    x[n >> 2] |= 128 << ((n % 4) * 8);
+    x[nb * 16 - 2] = n * 8;
+    var h = [1732584193, -271733879, -1732584194, 271733878];
+    for (j = 0; j < x.length; j += 16) {
+      var a = h[0], b = h[1], c = h[2], d = h[3];
+      for (i = 0; i < 64; i++) {
+        var r = i >> 4, f, g;
+        if (r === 0) { f = (b & c) | (~b & d); g = i; }
+        else if (r === 1) { f = (d & b) | (~d & c); g = (5 * i + 1) % 16; }
+        else if (r === 2) { f = b ^ c ^ d; g = (3 * i + 5) % 16; }
+        else { f = c ^ (b | ~d); g = (7 * i) % 16; }
+        var sum = (a + f + K[i] + x[j + g]) | 0, sh = S[r * 4 + (i % 4)];
+        a = d; d = c; c = b;
+        b = (b + ((sum << sh) | (sum >>> (32 - sh)))) | 0;
+      }
+      h[0] = (h[0] + a) | 0; h[1] = (h[1] + b) | 0; h[2] = (h[2] + c) | 0; h[3] = (h[3] + d) | 0;
+    }
+    var out = '';
+    for (i = 0; i < 16; i++) { out += ('0' + ((h[i >> 2] >>> ((i % 4) * 8)) & 255).toString(16)).slice(-2); }
+    return out;
+  }
+  function sendChap(){
+    var c = byId('chapForm');
+    c.querySelector('[name=username]').value = byId('username').value;
+    c.querySelector('[name=password]').value = md5hex(CHAP_ID + byId('password').value + CHAP_CHALLENGE);
+    c.submit();
+  }
+  byId('loginForm').addEventListener('submit', function(e){
+    if (chapOn()) { e.preventDefault(); sendChap(); }
+  });
+
+  function loginWith(user, pass){
+    byId('username').value = user; byId('password').value = pass;
+    closeSheet(); activate('login');
+    var f = byId('loginForm');
+    if (f.getAttribute('action').indexOf(UNSET) === 0) { return; } // page ouverte hors du routeur : on remplit seulement
+    if (chapOn()) { sendChap(); } else { f.submit(); }
+  }
+  byId('okConnect').addEventListener('click', function(){ loginWith(byId('okUser').textContent, byId('okPass').textContent); });
+
+  // ---- Tickets enregistrés sur l'appareil ----
+  var MAX_TICKETS = 3;
+  function ticketCookie(val){
+    try {
+      if (val === undefined) {
+        var m = document.cookie.match(/(?:^|; )ws_tickets=([^;]*)/);
+        return m ? JSON.parse(decodeURIComponent(m[1])) : null;
+      }
+      document.cookie = 'ws_tickets=' + encodeURIComponent(JSON.stringify(val)) + '; max-age=' + (180 * 86400) + '; path=/; SameSite=Lax';
+    } catch(e){ return null; }
+  }
+  function loadTickets(){
+    var list = store('ws_tickets');
+    if (!Array.isArray(list) || !list.length) { list = ticketCookie(); }
+    return Array.isArray(list) ? list.filter(function(t){ return t && t.user; }).slice(0, MAX_TICKETS) : [];
+  }
+  function saveTicket(t){
+    var list = loadTickets().filter(function(x){ return x.ref !== t.ref && x.user !== t.user; });
+    list.unshift(t);
+    list = list.slice(0, MAX_TICKETS);
+    store('ws_tickets', list);
+    ticketCookie(list);
+    renderTickets();
+  }
+  function renderTickets(){
+    var list = loadTickets();
+    var box = byId('myTickets');
+    if (!list.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    byId('myTicketsList').innerHTML = list.map(function(t, i){
+      var d = new Date(t.date);
+      var when = isNaN(d) ? '' : 'Acheté le ' + d.toLocaleDateString('fr-FR') + ' à ' + d.toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+      return '<div class="my-ticket"><div class="mt-info"><b>' + esc(t.plan || 'Forfait') + '</b>' +
+        '<div class="mt-creds"><span>Identifiant <code>' + esc(t.user) + '</code></span><span>Mot de passe <code>' + esc(t.pass || '') + '</code></span></div>' +
+        '<span class="mt-date">' + esc(when) + '</span></div><button type="button" data-i="' + i + '">Utiliser</button></div>';
+    }).join('');
+    byId('myTicketsList').querySelectorAll('button').forEach(function(b){
+      b.addEventListener('click', function(){ var t = list[+b.dataset.i]; loginWith(t.user, t.pass); });
+    });
+  }
+  renderTickets();
+
+  // ---- Paiement en attente (page rechargée ou retour de la page de paiement) ----
+  (function(){
+    var p = store('ws_pending');
+    if (!p || PAYMENT_MODE === 'off') return;
+    if (Date.now() - p.started > 30 * 60 * 1000) { store('ws_pending', null); return; }
+    current = p;
+    byId('pendingBanner').style.display = 'flex';
+    byId('pendingResume').addEventListener('click', function(){
+      byId('pendingBanner').style.display = 'none';
+      openSheet();
+      current.started = Date.now();
+      startWaiting();
+    });
+    if (/[?&](reference|trxref|status)=/.test(location.search)) { activate('forfaits'); byId('pendingResume').click(); }
+  })();
+  // Lien direct vers un onglet (ex. depuis la page de déconnexion : login#forfaits)
+  if (/^#(forfaits|academie|aide)$/.test(location.hash) && currentTab === 'login') { var anim = CAN_ANIMATE; CAN_ANIMATE = false; activate(location.hash.slice(1)); CAN_ANIMATE = anim; }
+
+  // ---- Retrouver un ticket ----
+  byId('recoverForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var ref = byId('recoverRef').value.trim().toUpperCase();
+    var phone = cleanPhone(byId('recoverPhone').value);
+    var msg = byId('recoverMsg');
+    if (!ref || !/^6\d{8}$/.test(phone)) { msg.style.color = 'var(--red)'; msg.textContent = 'Entrez la référence et le numéro à 9 chiffres qui a payé.'; return; }
+    if (PAYMENT_MODE !== 'live') { msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Disponible quand le paiement en ligne est activé.'; return; }
+    msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Recherche…';
+    api('status', { reference: ref, phone: phone }).then(function(res){
+      if (res.ok && res.status === 'complete' && res.username) {
+        current = { reference: ref, phone: phone, plan: res.plan };
+        msg.textContent = '';
+        openSheet(); success(res);
+      } else {
+        msg.style.color = 'var(--red)';
+        msg.textContent = res.ok ? 'Ce paiement n\'est pas encore confirmé (statut : ' + res.status + ').' : (res.error || 'Ticket introuvable.');
+      }
+    });
+  });
+
+  // ---- Affiches de l'académie ----
+  var lb = byId('lightbox');
+  function closeLightbox(){ lb.classList.remove('open'); document.body.classList.remove('locked'); }
+  document.querySelectorAll('.flyers button').forEach(function(b){
+    b.addEventListener('click', function(){ byId('lightboxImg').src = b.dataset.full; lb.classList.add('open'); document.body.classList.add('locked'); });
+  });
+  byId('lightboxClose').addEventListener('click', closeLightbox);
+  lb.addEventListener('click', function(e){ if (e.target === lb) closeLightbox(); });
+</script>
+
+</body>
+</html>

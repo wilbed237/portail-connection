@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Déconnecté · Wi-Fi Académie Cisco</title>
+<link rel="stylesheet" href="gandal.css">
+</head>
+<body>
+<!--
+  Page affichée par le hotspot (MikroTik) après la déconnexion. Les variables MikroTik (dollar et parenthèse) sont remplacées par le routeur.
+  Venant du bouton « Changer de forfait » de status.html, elle ouvre directement les forfaits.
+-->
+<main class="card">
+  <img class="logo" src="logo-academie.png" alt="Logo de l'Académie Cisco ENSPY">
+  <p class="brand">ACADÉMIE CISCO</p><p class="brand-sub">ENSPY · Polytechnique Yaoundé</p>
+  <span class="pill off">Déconnecté</span>
+  <h1>Vous êtes déconnecté</h1>
+  <p class="sub" id="sub">Votre session est terminée. Vous pouvez acheter un nouveau forfait ou vous reconnecter avec un ticket.</p>
+
+  <div class="stats">
+    <div class="stat wide"><small>Ticket</small><b>$(username)</b></div>
+    <div class="stat"><small>Durée de la session</small><b>$(uptime)</b></div>
+    <div class="stat"><small>Données reçues</small><b>$(bytes-out-nice)</b></div>
+  </div>
+
+  <a class="btn btn-primary" id="buy" href="$(link-login-only)#forfaits">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/></svg>
+    Acheter un nouveau forfait
+  </a>
+  <a class="btn btn-ghost" href="$(link-login-only)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+    Me connecter avec un autre ticket
+  </a>
+
+  <p class="note">Le ticket <b>$(username)</b> reste valable jusqu'à la fin de sa durée :
+    vous pouvez vous reconnecter avec ses identifiants tant qu'il n'est pas épuisé.</p>
+</main>
+<script>
+  // Arrivée depuis « Changer de forfait » : ouverture directe de la liste des forfaits
+  (function () {
+    var next = '';
+    try { next = sessionStorage.getItem('gandal-apres-deconnexion') || ''; sessionStorage.removeItem('gandal-apres-deconnexion'); } catch (e) {}
+    if (next === 'forfaits') {
+      document.getElementById('sub').textContent = 'Ouverture de la liste des forfaits…';
+      setTimeout(function () { location.href = document.getElementById('buy').href; }, 1200);
+    }
+  })();
+</script>
+</body>
+</html>

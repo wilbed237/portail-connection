@@ -36,7 +36,8 @@ $r .= "# ---- 1. User Manager et RADIUS (le hotspot authentifie via User Manager
 $r .= "# Si un RADIUS local existe déjà (User Manager déjà utilisé), il est conservé tel quel avec son secret.\n";
 $r .= "/user-manager set enabled=yes\n";
 $r .= ":if ([:len [/user-manager router find where address=127.0.0.1]] = 0 and [:len [/radius find where address=127.0.0.1]] = 0) do={ /user-manager router add name=\"gandal-hotspot\" address=127.0.0.1 shared-secret=" . rs($radius) . "; /radius add service=hotspot address=127.0.0.1 secret=" . rs($radius) . " timeout=3s comment=\"gandal\" } else={ :if ([:len [/user-manager router find where address=127.0.0.1]] = 0 or [:len [/radius find where address=127.0.0.1]] = 0) do={ :error \"RADIUS local incomplet : verifier /radius et /user-manager router\" } else={ :put \"RADIUS local existant conserve\" } }\n";
-$r .= "/ip hotspot profile set [find] use-radius=yes radius-accounting=yes radius-interim-update=5m\n\n";
+// Le profil du portail 2 (hsprof2) reste SANS RADIUS : ses tickets sont séparés de ceux du portail GI
+$r .= "/ip hotspot profile set [find where name!=\"hsprof2\"] use-radius=yes radius-accounting=yes radius-interim-update=5m\n\n";
 
 $r .= "# ---- 2. Un profil par forfait\n";
 foreach (plans() as $id => $p) {
