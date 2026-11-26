@@ -8,11 +8,11 @@ $status = (string)($_GET['statut'] ?? '');
 $plan = (string)($_GET['forfait'] ?? '');
 $op = (string)($_GET['operateur'] ?? '');
 
-$where = ['o.created_at >= ?::date', "o.created_at < ?::date + interval '1 day'"];
+$where = ['o.created_at >= ?::date', "o.created_at < ?::date + interval '1 day'", portal_cond('o.plan_id')];
 $args = [$from, $to];
 if ($status === 'encaisse') { $where[] = 'o.status IN ' . PAID_STATUSES; }
 elseif ($status !== '') { $where[] = 'o.status = ?'; $args[] = $status; }
-if ($plan !== '' && isset(plans()[$plan])) { $where[] = 'o.plan_id = ?'; $args[] = $plan; }
+if ($plan !== '' && isset(scope_plans()[$plan])) { $where[] = 'o.plan_id = ?'; $args[] = $plan; }
 if (in_array($op, ['mtn', 'orange'], true)) { $where[] = 'o.operator = ?'; $args[] = $op; }
 $w = implode(' AND ', $where);
 
@@ -24,7 +24,7 @@ $phone = fn($p) => $isAdmin ? $p : mask_phone($p);
 
 if (($_GET['export'] ?? '') === 'pdf') {
     $stLabels = ['encaisse' => 'Encaissés', 'complete' => 'Livrés', 'paid_no_ticket' => 'Payés sans ticket', 'pending' => 'En attente', 'failed' => 'Refusés', 'expired' => 'Expirés'];
-    report_ventes($from, $to, $w, $args, 'état : ' . ($stLabels[$status] ?? 'tous') . ' · forfait : ' . (plans()[$plan]['label'] ?? 'tous')
+    report_ventes($from, $to, $w, $args, 'périmètre : ' . scope_label() . ' · état : ' . ($stLabels[$status] ?? 'tous') . ' · forfait : ' . (plans()[$plan]['label'] ?? 'tous')
         . ' · opérateur : ' . (['mtn' => 'MTN', 'orange' => 'Orange'][$op] ?? 'tous'), $me, $phone);
 }
 if (($_GET['export'] ?? '') === 'csv') {
@@ -85,7 +85,7 @@ foreach (['encaisse' => 'Encaissés', 'complete' => 'Livrés', 'paid_no_ticket' 
     $extra .= '<option value="' . $k . '"' . ($status === $k ? ' selected' : '') . '>' . $l . '</option>';
 }
 $extra .= '</select></label><label>Forfait<select name="forfait"><option value="">Tous</option>';
-foreach (plans() as $id => $p) { $extra .= '<option value="' . h($id) . '"' . ($plan === $id ? ' selected' : '') . '>' . h($p['label']) . '</option>'; }
+foreach (scope_plans() as $id => $p) { $extra .= '<option value="' . h($id) . '"' . ($plan === $id ? ' selected' : '') . '>' . h($p['label']) . '</option>'; }
 $extra .= '</select></label><label>Opérateur<select name="operateur"><option value="">Tous</option><option value="mtn"' . ($op === 'mtn' ? ' selected' : '')
         . '>MTN</option><option value="orange"' . ($op === 'orange' ? ' selected' : '') . '>Orange</option></select></label>';
 

@@ -2,6 +2,7 @@
 /*
  * Simulateur pour les tests : API de paiement IZI Spot (/izi/…) et API REST RouterOS 7 (/ros/rest/…).
  * Pilotage : /ctl/pay?ref=…  /ctl/router?down=1|0  /ctl/usage?user=…&bytes=…  /ctl/state
+ *            /ctl/hslogin?user=…  (premier passage d'un ticket hotspot2 : il se connecte et consomme)
  * Lancement : php -S 0.0.0.0:8080 tests/mock.php
  */
 
@@ -10,7 +11,7 @@ declare(strict_types=1);
 $file = sys_get_temp_dir() . '/gandal-mock.json';
 $fh = fopen($file . '.lock', 'c'); flock($fh, LOCK_EX);
 $S = is_file($file) ? json_decode((string)file_get_contents($file), true) : [];
-$S += ['payments' => [], 'idem' => [], 'users' => [], 'profiles' => [], 'down' => false, 'n' => 0, 'kicked' => []];
+$S += ['payments' => [], 'idem' => [], 'users' => [], 'profiles' => [], 'down' => false, 'n' => 0, 'kicked' => [], 'hsusers' => []];
 $save = function () use (&$S, $file) { file_put_contents($file, json_encode($S)); };
 
 $path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -33,6 +34,7 @@ if ($path === '/ctl/pay') {   // ?ref=<notre référence>&status=succeeded|faile
 if ($path === '/ctl/renum') { $S['renum'] = true; $save(); out(200, ['ok' => true]); }   // simule un redémarrage du routeur
 if ($path === '/ctl/router') { $S['down'] = ($query['down'] ?? '0') === '1'; $save(); out(200, ['down' => $S['down']]); }
 if ($path === '/ctl/usage') { $S['users'][$query['user']]['extra'] = (int)$query['bytes']; $save(); out(200, ['ok' => true]); }   // consommation ajoutée
+if ($path === '/ctl/hslogin') { $S['hsusers'][$query['user']]['online'] = true; $S['hsusers'][$query['user']]['n0'] = $S['n']; $save(); out(200, ['ok' => true]); }
 if ($path === '/ctl/state') { out(200, $S); }
 
 /* ---------- IZI Spot (d'après INTEGRATION.md) ---------- */
@@ -84,16 +86,41 @@ if (str_starts_with($path, '/ros/rest/')) {
     $r = substr($path, strlen('/ros/rest'));
     if ($r === '/system/resource') { out(200, ['cpu-load' => '7', 'free-memory' => '180000000', 'total-memory' => '268435456', 'uptime' => '3d4h']); }
     if ($r === '/ip/hotspot/active') {
-        $list = array_map(fn($u) => ['.id' => '*A' . strtoupper(substr(md5($u), 0, 8)), 'user' => $u], array_values(array_filter(array_keys($S['users']), fn($u) => !in_array($u, $S['kicked'], true))));
+        $list = array_map(fn($u) => ['.id' => '*A' . strtoupper(substr(md5($u), 0, 8)), 'user' => $u, 'server' => 'hotspot1', 'uptime' => '1h'], array_values(array_filter(array_keys($S['users']), fn($u) => !in_array($u, $S['kicked'], true))));
+        foreach ($S['hsusers'] as $u => $h) {
+            if (!empty($h['online']) && !in_array($u, $S['kicked'], true)) { $list[] = ['.id' => '*A' . strtoupper(substr(md5($u), 0, 8)), 'user' => $u, 'server' => 'hotspot2', 'uptime' => '10m']; }
+        }
         if (isset($query['user'])) { $list = array_values(array_filter($list, fn($a) => $a['user'] === $query['user'])); }
         out(200, $list);
     }
     if ($m === 'DELETE' && preg_match('#^/ip/hotspot/active/(.+)$#', $r, $x)) {
-        foreach (array_keys($S['users']) as $u) { if ('*A' . strtoupper(substr(md5($u), 0, 8)) === $x[1]) { $S['kicked'][] = $u; $save(); out(204, null); } }
+        foreach (array_merge(array_keys($S['users']), array_keys($S['hsusers'])) as $u) { if ('*A' . strtoupper(substr(md5($u), 0, 8)) === $x[1]) { $S['kicked'][] = $u; $save(); out(204, null); } }
         out(404, ['error' => 404, 'message' => 'no such item']);
     }
     if ($m === 'PATCH' && preg_match('#^/user-manager/user/(.+)$#', $r, $x)) {
         foreach ($S['users'] as $name => $u) { if ($u['.id'] === $x[1]) { $S['users'][$name] = array_merge($u, $body); $save(); out(200, $S['users'][$name]); } }
+        out(404, ['error' => 404, 'message' => 'no such item']);
+    }
+    /* Utilisateurs du hotspot (portail Académie, serveur hotspot2) : 10 Mo reçus par relevé une fois connectés */
+    if ($r === '/ip/hotspot/user') {
+        if ($m === 'PUT') {
+            if (isset($S['hsusers'][$body['name']]['.id'])) { out(400, ['error' => 400, 'message' => 'Bad Request', 'detail' => 'failure: already have user with this name for this server']); }
+            if (($body['server'] ?? '') !== 'hotspot2' || !in_array($body['profile'] ?? '', ['portail2', 'portail2-5m'], true)) { out(400, ['error' => 400, 'detail' => 'input does not match any value of server/profile']); }
+            $S['hsusers'][$body['name']] = $body + ['.id' => '*' . dechex(0xB00 + count($S['hsusers'])), 'disabled' => 'false'] + ($S['hsusers'][$body['name']] ?? []);
+            $save(); out(201, $S['hsusers'][$body['name']]);
+        }
+        $list = [];
+        foreach ($S['hsusers'] as $name => $h) {
+            if (!isset($h['.id']) || (isset($query['name']) && $query['name'] !== $name)) { continue; }
+            $on = !empty($h['online']);
+            $list[] = array_diff_key($h, ['online' => 1, 'n0' => 1, 'extra' => 1]) + [
+                'bytes-out' => (string)($on ? 10485760 * max(1, $S['n'] - ($h['n0'] ?? 0)) + ($h['extra'] ?? 0) : 0),
+                'bytes-in' => (string)($on ? 1048576 * max(1, $S['n'] - ($h['n0'] ?? 0)) : 0), 'uptime' => $on ? '10m' : '0s'];
+        }
+        out(200, $list);
+    }
+    if ($m === 'PATCH' && preg_match('#^/ip/hotspot/user/(.+)$#', $r, $x)) {
+        foreach ($S['hsusers'] as $name => $h) { if (($h['.id'] ?? '') === $x[1]) { $S['hsusers'][$name] = array_merge($h, $body); $save(); out(200, $S['hsusers'][$name]); } }
         out(404, ['error' => 404, 'message' => 'no such item']);
     }
     if ($r === '/user-manager/user') {

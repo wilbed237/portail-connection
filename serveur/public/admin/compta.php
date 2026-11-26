@@ -6,7 +6,7 @@ $me = require_admin();
 $month = preg_match('/^\d{4}-\d{2}$/', $_GET['mois'] ?? '') ? $_GET['mois'] : date('Y-m');
 $start = $month . '-01';
 $base = "FROM orders o JOIN plans p ON p.id = o.plan_id
-         WHERE o.status IN " . PAID_STATUSES . " AND o.paid_at >= ?::date AND o.paid_at < ?::date + interval '1 month'";
+         WHERE o.status IN " . PAID_STATUSES . " AND o.paid_at >= ?::date AND o.paid_at < ?::date + interval '1 month' AND " . portal_cond('o.plan_id');
 $args = [$start, $start];
 
 $tot = one("SELECT count(*) AS n, COALESCE(sum(o.amount),0) AS ca, COALESCE(sum(o.fee),0) AS frais $base", $args);
@@ -27,7 +27,7 @@ if (($_GET['export'] ?? '') === 'csv') {
 $months = [];
 for ($i = 11; $i >= 0; $i--) { $months[date('Y-m', strtotime($start . " -$i month"))] = ['ca' => 0, 'frais' => 0, 'n' => 0]; }
 foreach (all("SELECT to_char(paid_at, 'YYYY-MM') AS m, count(*) AS n, sum(amount) AS ca, sum(fee) AS frais FROM orders
-              WHERE status IN " . PAID_STATUSES . " AND paid_at >= ?::date - interval '11 months' AND paid_at < ?::date + interval '1 month' GROUP BY 1", $args) as $r) {
+              WHERE status IN " . PAID_STATUSES . " AND paid_at >= ?::date - interval '11 months' AND paid_at < ?::date + interval '1 month' AND " . portal_cond('plan_id') . " GROUP BY 1", $args) as $r) {
     if (isset($months[$r['m']])) { $months[$r['m']] = ['ca' => (float)$r['ca'], 'frais' => (float)$r['frais'], 'n' => (int)$r['n']]; }
 }
 $moisFr = ['01' => 'janv.', '02' => 'févr.', '03' => 'mars', '04' => 'avr.', '05' => 'mai', '06' => 'juin', '07' => 'juil.', '08' => 'août', '09' => 'sept.', '10' => 'oct.', '11' => 'nov.', '12' => 'déc.'];
@@ -72,7 +72,7 @@ page_start('Comptabilité', $me, 'compta.php', 'Mois de ' . h($mLabel($month)) .
       $b = '<div class="tiles" style="grid-template-columns:repeat(2,minmax(0,1fr));margin:0">'
          . stat_tile('Disponible au retrait', fcfa($balance['available'] ?? 0)) . stat_tile('Retraits en cours', fcfa($balance['pending'] ?? 0))
          . stat_tile('Total encaissé (net)', fcfa($balance['totalEarned'] ?? 0)) . stat_tile('Total retiré', fcfa($balance['totalWithdrawn'] ?? 0))
-         . '</div><p class="note" style="margin:12px 0 0">Lu en direct chez IZI Spot. Les retraits (minimum 1 000 FCFA) se font depuis votre espace IZI Spot.</p>';
+         . '</div><p class="note" style="margin:12px 0 0">Lu en direct chez IZI Spot. ' . (portal_scope() !== 'tous' ? 'Compte commun aux deux portails : ce solde n\'est pas propre à ce portail. ' : '') . 'Les retraits (minimum 1 000 FCFA) se font depuis votre espace IZI Spot.</p>';
   } else {
       $b = '<p class="muted">Solde IZI Spot indisponible pour le moment.</p>';
   }

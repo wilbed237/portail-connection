@@ -47,7 +47,7 @@ function rs(string $s): string { return '"' . str_replace(['\\', '"', '$', "\n"]
  */
 $sync = <<<ROS
 :local srv "hotspot2"
-:local rate "{$rate}M/{$rate}M"
+:local rates {"portail2"="{$rate}000000/{$rate}000000";"portail2-5m"="5000000/5000000"}
 :local tgt [:toarray ""]
 :local cmp [:toarray ""]
 :foreach a in=[/ip hotspot active find where server=\$srv] do={
@@ -63,11 +63,15 @@ $sync = <<<ROS
 }
 :foreach u,t in=\$tgt do={
   :local qn ("hs2-" . \$u)
+  :local rate (\$rates->"portail2")
+  :local hu [/ip hotspot user find where name=\$u and server=\$srv]
+  :if ([:len \$hu] > 0) do={ :local pr [/ip hotspot user get [:pick \$hu 0] profile]; :if ([:typeof (\$rates->\$pr)] != "nothing") do={ :set rate (\$rates->\$pr) } }
   :local q [/queue simple find where name=\$qn]
   :if ([:len \$q] = 0) do={
     /queue simple add name=\$qn target=\$t max-limit=\$rate queue=pcq-upload-default/pcq-download-default comment="GANDAL portail2"
   } else={
     :if ([:tostr [/queue simple get \$q target]] != (\$cmp->\$u)) do={ /queue simple set \$q target=\$t }
+    :if ([:tostr [/queue simple get \$q max-limit]] != \$rate) do={ /queue simple set \$q max-limit=\$rate }
   }
 }
 :foreach q in=[/queue simple find where comment="GANDAL portail2"] do={
@@ -93,13 +97,15 @@ $r .= "# DNS = routeur seul : sinon l'adresse http://$dns ne se resout pas sur l
 $r .= "/ip dns set allow-remote-requests=yes\n\n";
 
 $r .= "# ---- 2. Profil d'utilisateur : 2 appareils par ticket, debit gere par les files hs2-<ticket>\n";
-$r .= ":if ([:len [/system script find where name=\"gandal-portail2-debit\"]] = 0) do={ /system script add name=\"gandal-portail2-debit\" policy=read,write,test source=\"\" }\n";
-$r .= "/system script set [find where name=\"gandal-portail2-debit\"] policy=read,write,test source=" . rs($sync) . "\n";
+$r .= ":if ([:len [/system script find where name=\"gandal-portail2-debit\"]] = 0) do={ /system script add name=\"gandal-portail2-debit\" policy=read,write source=\"\" }\n";
+$r .= "/system script set [find where name=\"gandal-portail2-debit\"] policy=read,write source=" . rs($sync) . "\n";
 $prof = "shared-users=2 add-mac-cookie=yes mac-cookie-timeout=1d keepalive-timeout=2m idle-timeout=none status-autorefresh=1m"
       . " on-login=\"/system script run gandal-portail2-debit\" on-logout=\"/system script run gandal-portail2-debit\"";
-$r .= ":if ([:len [/ip hotspot user profile find where name=\"portail2\"]] = 0) do={ /ip hotspot user profile add name=\"portail2\" $prof } else={ /ip hotspot user profile set [find where name=\"portail2\"] $prof }\n";
+foreach (['portail2', 'portail2-5m'] as $pn) {   // portail2 : forfaits à {$rate} Mb/s ; portail2-5m : forfaits à 5 Mb/s (le débit est lu par le script)
+    $r .= ":if ([:len [/ip hotspot user profile find where name=\"$pn\"]] = 0) do={ /ip hotspot user profile add name=\"$pn\" $prof } else={ /ip hotspot user profile set [find where name=\"$pn\"] $prof }\n";
+}
 $r .= "# Filet de securite : resynchronise les files toutes les 30 s (deconnexions par expiration, coupures)\n";
-$r .= ":if ([:len [/system scheduler find where name=\"gandal-portail2-debit\"]] = 0) do={ /system scheduler add name=\"gandal-portail2-debit\" interval=30s start-time=startup policy=read,write,test on-event=\"/system script run gandal-portail2-debit\" }\n\n";
+$r .= ":if ([:len [/system scheduler find where name=\"gandal-portail2-debit\"]] = 0) do={ /system scheduler add name=\"gandal-portail2-debit\" interval=30s start-time=startup policy=read,write on-event=\"/system script run gandal-portail2-debit\" }\n\n";
 
 $r .= "# ---- 3. Serveur hotspot : sans RADIUS, il n'accepte que ses propres utilisateurs (tickets separes)\n";
 $hp = "hotspot-address=$gw dns-name=\"$dns\" html-directory=hotspot2 login-by=cookie,http-chap,http-pap,mac-cookie http-cookie-lifetime=1d use-radius=no";

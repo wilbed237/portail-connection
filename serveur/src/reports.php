@@ -22,7 +22,7 @@ function r_period(string $from, string $to): string {
     return $from === $to ? 'le ' . date('d/m/Y', strtotime($from)) : 'du ' . date('d/m/Y', strtotime($from)) . ' au ' . date('d/m/Y', strtotime($to));
 }
 function r_meta(array $me, array $extra = []): array {
-    return array_merge($extra, ['Généré le ' . date('d/m/Y à H:i') . ' par ' . $me['user'] . ' (' . $me['role'] . ') · montants en francs CFA (FCFA), heure du Cameroun']);
+    return array_merge(['Périmètre : ' . scope_label() . '.'], $extra, ['Généré le ' . date('d/m/Y à H:i') . ' par ' . $me['user'] . ' (' . $me['role'] . ') · montants en francs CFA (FCFA), heure du Cameroun']);
 }
 const R_STATUS = ['pending' => 'En attente', 'paid' => 'Payé, ticket en cours', 'complete' => 'Livré', 'paid_no_ticket' => 'Payé sans ticket',
                   'failed' => 'Refusé', 'canceled' => 'Annulé', 'expired' => 'Expiré'];
@@ -130,7 +130,7 @@ function report_ventes(string $from, string $to, string $w, array $args, string 
 /* ======================= Consommation ======================= */
 
 function report_conso(string $from, string $to, string $grain, array $me): never {
-    $range = "ts >= ?::date AND ts < ?::date + interval '1 day'";
+    $range = "ts >= ?::date AND ts < ?::date + interval '1 day' AND " . portal_cond('plan_id');
     $args = [$from, $to];
     $len = (int)round((strtotime($to) - strtotime($from)) / 86400) + 1;
     $pf = date('Y-m-d', strtotime("$from -$len days")); $pt = date('Y-m-d', strtotime("$from -1 day"));
@@ -196,7 +196,7 @@ function report_conso(string $from, string $to, string $grain, array $me): never
     $pdf->h2('Tickets qui consomment le plus', '50 premiers tickets de la période.');
     $top = all("SELECT s.username, COALESCE(p.label, '') AS label, t.state, t.first_login_at, sum(s.bytes_down) AS d, sum(s.bytes_up) AS u
                 FROM usage_samples s LEFT JOIN plans p ON p.id = s.plan_id LEFT JOIN tickets t ON t.username = s.username
-                WHERE $range GROUP BY 1, 2, 3, 4 ORDER BY sum(s.bytes_down + s.bytes_up) DESC LIMIT 50", $args);
+                WHERE " . "ts >= ?::date AND ts < ?::date + interval '1 day' AND " . portal_cond('s.plan_id') . " GROUP BY 1, 2, 3, 4 ORDER BY sum(s.bytes_down + s.bytes_up) DESC LIMIT 50", $args);
     $pdf->table([['#', 0.5, 'R'], ['Ticket', 1.5], ['Forfait', 3], ['1re connexion', 1.8], ['Réception', 1.5, 'R'], ['Envoi', 1.3, 'R'], ['Total', 1.5, 'R']],
         array_map(fn($r, $i) => [$i + 1, $r['username'], $r['label'], r_d($r['first_login_at']), gb_h((float)$r['d'], 2), gb_h((float)$r['u'], 2), gb_h($r['d'] + $r['u'], 2)], $top, array_keys($top)),
         ['size' => 8]);
@@ -213,7 +213,7 @@ function report_compta(string $month, ?array $balance, array $me): never {
     $shownEnd = min($end, date('Y-m-d'));
     $mLong = zoom_label('month', $start, true);
     $prevStart = date('Y-m-01', strtotime("$start -1 month"));
-    $base = "FROM orders o JOIN plans p ON p.id = o.plan_id WHERE o.status IN " . PAID_STATUSES . " AND o.paid_at >= ?::date AND o.paid_at < ?::date + interval '1 month'";
+    $base = "FROM orders o JOIN plans p ON p.id = o.plan_id WHERE o.status IN " . PAID_STATUSES . " AND o.paid_at >= ?::date AND o.paid_at < ?::date + interval '1 month' AND " . portal_cond('o.plan_id');
     $tq = "SELECT count(*) AS n, COALESCE(sum(o.amount),0) AS ca, COALESCE(sum(o.fee),0) AS frais $base";
     $c = one($tq, [$start, $start]); $p = one($tq, [$prevStart, $prevStart]);
     $net = fn($r) => $r['ca'] - $r['frais'];
@@ -241,7 +241,7 @@ function report_compta(string $month, ?array $balance, array $me): never {
     ]);
 
     if ($balance) {
-        $pdf->h2('Solde du compte IZI Spot', 'Lu en direct chez IZI Spot le ' . date('d/m/Y à H:i') . '.');
+        $pdf->h2('Solde du compte IZI Spot', 'Lu en direct chez IZI Spot le ' . date('d/m/Y à H:i') . '. Compte commun aux deux portails.');
         $pdf->table([['Poste', 3], ['Montant', 2, 'R']], [
             ['Disponible au retrait', r_f($balance['available'] ?? 0)], ['Retraits en cours', r_f($balance['pending'] ?? 0)],
             ['Total encaissé depuis l\'ouverture (net)', r_f($balance['totalEarned'] ?? 0)], ['Total retiré depuis l\'ouverture', r_f($balance['totalWithdrawn'] ?? 0)],
@@ -275,7 +275,7 @@ function report_compta(string $month, ?array $balance, array $me): never {
     $months = [];
     for ($i = 11; $i >= 0; $i--) { $months[date('Y-m', strtotime("$start -$i month"))] = $zero; }
     foreach (all("SELECT to_char(paid_at, 'YYYY-MM') AS m, count(*) AS n, sum(amount) AS ca, sum(fee) AS frais FROM orders
-                  WHERE status IN " . PAID_STATUSES . " AND paid_at >= ?::date - interval '11 months' AND paid_at < ?::date + interval '1 month' GROUP BY 1", [$start, $start]) as $r) {
+                  WHERE status IN " . PAID_STATUSES . " AND paid_at >= ?::date - interval '11 months' AND paid_at < ?::date + interval '1 month' AND " . portal_cond('plan_id') . " GROUP BY 1", [$start, $start]) as $r) {
         if (isset($months[$r['m']])) { $months[$r['m']] = $r + $zero; }
     }
     $y = ['n' => 0, 'ca' => 0, 'frais' => 0];

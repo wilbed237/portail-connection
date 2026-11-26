@@ -28,7 +28,7 @@ if (isset($plans[$cmd])) {
     $ok = 0;
     for ($i = 0; $i < $n; $i++) {
         [$u, $p] = new_credentials();
-        $err = um_create_ticket($u, $p, $cmd);
+        $err = create_ticket($u, $p, $cmd);
         if ($err !== '') { fwrite(STDERR, "Arrêt : le routeur a refusé le ticket $u : $err\n"); break; }
         q("INSERT INTO tickets (username, password, plan_id, source) VALUES (?, ?, ?, 'stock')", [$u, $p, $cmd]);
         $ok++;

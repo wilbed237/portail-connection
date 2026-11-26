@@ -18,18 +18,58 @@ function page_start(string $title, array $me, string $active, string $subtitle =
     header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; form-action 'self'; frame-ancestors 'none'");
     header('Referrer-Policy: same-origin');
     header('Cache-Control: no-store');
-    echo '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">';
+    echo '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">';
     echo '<title>' . h($title) . ' · GANDAL admin</title><link rel="icon" href="assets/logo-emblem.png"><style>' . admin_css() . '</style>';
-    echo '<script src="assets/admin.js" defer></script></head><body><div class="shell"><aside class="side"><div class="brand"><img class="logo" src="assets/logo-emblem.png" alt="" width="32" height="32">GANDAL<small>admin</small></div><nav>';
+    echo '<script src="assets/admin.js" defer></script></head><body class="scope-' . portal_scope() . '"><div class="shell"><aside class="side"><div class="brand"><img class="logo" src="assets/logo-emblem.png" alt="" width="32" height="32">GANDAL<small>admin</small></div><nav>';
     foreach (ADMIN_NAV as $href => [$label, $icon]) {
         echo '<a href="' . $href . '"' . ($href === $active ? ' aria-current="page"' : '') . '><svg viewBox="0 0 24 24" aria-hidden="true">' . $icon . '</svg><span>' . $label . '</span></a>';
     }
     echo '<a href="' . h(cfg()['grafana_url']) . '"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg><span>Grafana</span></a>';
     echo '</nav><div class="me"><span class="avatar">' . h(strtoupper(substr($me['user'], 0, 1))) . '</span><span><b>' . h($me['user']) . '</b><small>' . h($me['role']) . '</small></span><a href="logout.php" title="Déconnexion" aria-label="Déconnexion"><svg viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg></a></div></aside>';
-    echo '<main><header class="ph"><div><h1>' . h($title) . '</h1>' . ($subtitle ? '<p class="sub">' . $subtitle . '</p>' : '') . '</div>' . ($actions ? '<div class="ph-actions">' . $actions . '</div>' : '') . '</header>';
+    echo '<main>' . portal_switch() . '<header class="ph"><div><h1>' . h($title) . (portal_scope() !== 'tous' && $title !== PORTALS[portal_scope()][1] ? ' <span class="pchip">' . h(PORTALS[portal_scope()][1]) . '</span>' : '') . '</h1>' . ($subtitle ? '<p class="sub">' . $subtitle . '</p>' : '') . '</div>' . ($actions ? '<div class="ph-actions">' . $actions . '</div>' : '') . '</header>';
 }
 
 function page_end(): void { echo '<div id="tip" role="tooltip" hidden></div></main></div></body></html>'; }
+
+/* ---- Portails : statistiques mutualisées ou propres à un portail ----
+ * Le périmètre choisi (?portail=tous|gi|academie) est retenu dans la session : il suit l'utilisateur
+ * d'une page à l'autre (tableau de bord, ventes, consommation, comptabilité, tickets, rapports PDF). */
+const PORTALS = [
+    'tous'     => ['Mutualisé', 'Les deux portails', '<path d="M3 12h4l3-8 4 16 3-8h4"/>'],
+    'gi'       => ['Portail GI', 'Portail GI', '<path d="M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0M2 9a15 15 0 0 1 20 0"/><circle cx="12" cy="19.5" r="1"/>'],
+    'academie' => ['Académie', 'Académie Cisco', '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>'],
+];
+function portal_scope(): string {
+    static $s = null;
+    if ($s !== null) { return $s; }
+    $g = (string)($_GET['portail'] ?? '');
+    if (isset(PORTALS[$g])) { $_SESSION['portail'] = $g; }
+    $s = (string)($_SESSION['portail'] ?? 'tous');
+    if (!isset(PORTALS[$s])) { $s = 'tous'; }
+    return $s;
+}
+/* Condition SQL sur une colonne plan_id pour le périmètre (les tickets hors GANDAL, sans forfait, sont ceux du portail GI) */
+function portal_cond(string $col, ?string $portal = null): string {
+    $p = $portal ?? portal_scope();
+    if ($p === 'tous') { return 'TRUE'; }
+    $ids = array_filter(array_keys(portal_plans('academie')), fn($i) => preg_match('/^[a-z0-9-]+$/', $i));
+    $in = $ids ? "'" . implode("','", $ids) . "'" : "''";
+    return $p === 'academie' ? "$col IN ($in)" : "($col IS NULL OR $col NOT IN ($in))";
+}
+/* Forfaits du périmètre */
+function scope_plans(): array { return portal_scope() === 'tous' ? plans() : portal_plans(portal_scope()); }
+/* Nom long du périmètre, pour les rapports */
+function scope_label(): string { return ['tous' => 'les deux portails (mutualisé)', 'gi' => 'portail du Département GI', 'academie' => "portail de l'Académie Cisco"][portal_scope()]; }
+/* Sélecteur de périmètre : en haut de page sur ordinateur, barre fixe en bas de l'écran sur téléphone */
+function portal_switch(): string {
+    $q = $_GET; unset($q['portail'], $q['export'], $q['forfait']);
+    $out = '<nav class="scope" aria-label="Statistiques par portail">';
+    foreach (PORTALS as $k => [$label, , $icon]) {
+        $out .= '<a class="sc-' . $k . '" href="?' . h(http_build_query($q + ['portail' => $k])) . '"' . (portal_scope() === $k ? ' aria-current="page"' : '')
+              . '><svg viewBox="0 0 24 24" aria-hidden="true">' . $icon . '</svg><span>' . h($label) . '</span></a>';
+    }
+    return $out . '</nav>';
+}
 
 /* Carte de contenu */
 function card(string $title, string $body, string $aside = '', string $class = ''): string {
@@ -81,6 +121,15 @@ a{color:var(--accent)}
 .avatar{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.14);display:grid;place-items:center;font-weight:700}
 main{padding:24px 28px 56px;max-width:1360px;width:100%;min-width:0}
 .ph-actions{display:flex;gap:8px;flex-wrap:wrap}
+.scope{display:flex;gap:4px;width:max-content;max-width:100%;margin:0 0 16px;padding:4px;border-radius:12px;background:var(--card);border:1px solid var(--line)}
+.scope a{display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:9px;color:var(--ink2);text-decoration:none;font-weight:600;font-size:13.5px;white-space:nowrap}
+.scope a:hover{background:var(--hover);color:var(--ink)}
+.scope svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.scope a[aria-current]{color:#fff;background:var(--brand)}
+.scope a.sc-gi[aria-current]{background:var(--s1)}.scope a.sc-academie[aria-current]{background:var(--s2)}
+.pchip{display:inline-block;vertical-align:middle;margin-left:8px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:.01em;color:#fff;background:var(--s1)}
+.scope-academie .pchip{background:var(--s2)}
+.scope-academie .col>b,.scope-academie .hb-t b{background:var(--s2)}
 .ph{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:18px;flex-wrap:wrap}
 h1{font-size:22px;margin:0;letter-spacing:-.01em}.sub{margin:2px 0 0;color:var(--ink2)}
 h2{font-size:15px;margin:0;font-weight:600}
@@ -183,7 +232,11 @@ button,.btn{background:var(--accent);color:var(--accent-ink);border-color:transp
  .brand{padding:0 6px 0 0}.brand small{display:none}
  .side nav{flex-direction:row;overflow-x:auto;gap:2px;scrollbar-width:none;min-width:0}.side nav a{padding:8px 10px;white-space:nowrap}.side nav a span{font-size:13px}
  .side nav a svg{display:none}.me{border:0;padding:0}.me>span:nth-child(2),.avatar{display:none}
- main{padding:16px 16px 48px}.t-v{font-size:22px}
+ main{padding:16px 16px calc(92px + env(safe-area-inset-bottom))}.t-v{font-size:22px}
+ .scope{position:fixed;left:0;right:0;bottom:0;z-index:40;width:auto;margin:0;border-radius:16px 16px 0 0;border-width:1px 0 0;justify-content:space-around;gap:2px;
+   padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -8px 24px rgba(0,0,0,.10);background:var(--card)}
+ .scope a{flex:1;flex-direction:column;gap:3px;padding:7px 4px;font-size:11.5px;border-radius:10px}
+ .scope svg{width:21px;height:21px}
  .hb{grid-template-columns:minmax(90px,40%) minmax(0,1fr) auto;gap:8px}
  .seg{display:flex;max-width:100%;overflow-x:auto;scrollbar-width:none}
  .filters>label{flex:1 1 140px}.filters input,.filters select{width:100%}
@@ -389,7 +442,7 @@ function running_tickets(?string $plan = null, int $limit = 500): array {
                                   sum(bytes_down + bytes_up) FILTER (WHERE ts >= date_trunc('day', now())) AS today
                            FROM usage_samples GROUP BY 1) u ON u.username = t.username
                 LEFT JOIN (SELECT DISTINCT username, true AS active FROM usage_sessions WHERE active) s ON s.username = t.username
-                WHERE t.state LIKE 'running%' AND (t.expires_at IS NULL OR t.expires_at > now())$wherePlan
+                WHERE t.state LIKE 'running%' AND (t.expires_at IS NULL OR t.expires_at > now()) AND " . portal_cond('t.plan_id') . "$wherePlan
                 ORDER BY COALESCE(u.today, 0) DESC, COALESCE(u.used, 0) DESC LIMIT ?", $args);
 }
 

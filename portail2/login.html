@@ -504,7 +504,7 @@
       </div>
 
       <div class="perks">
-        <div><b>10 Mb/s</b>par ticket</div>
+        <div><b>Jusqu'à 10 Mb/s</b>par ticket</div>
         <div><b>2 appareils</b>par ticket</div>
       </div>
       <div class="soon" id="plansSoon">
@@ -655,11 +655,11 @@
         </details>
         <details>
           <summary>Quel débit vais-je avoir ?</summary>
-          <p>Chaque ticket dispose de <b>10 Mb/s</b>, partagés entre ses appareils : seul, un appareil profite des 10 Mb/s ; à deux, ils se les partagent. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
+          <p>Les forfaits <b>1 semaine</b> et <b>1 mois</b> ont <b>10 Mb/s</b> par ticket, le forfait <b>1 jour</b> 5 Mb/s, partagés entre les appareils du ticket : seul, un appareil profite de tout le débit ; à deux, ils se le partagent. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
         </details>
         <details>
           <summary>Quand mon forfait commence-t-il ?</summary>
-          <p>La durée démarre à votre première connexion. Les conditions précises de chaque forfait (durée, volume) seront indiquées dans l'onglet <b>Forfaits</b>.</p>
+          <p>La durée démarre à votre première connexion. Le forfait <b>5 Go / 1 jour</b> est valable jusqu'à <b>23 h 59</b> le jour de votre première connexion, quelle que soit l'heure. Le forfait <b>20 Go / 1 semaine</b> dure 7 jours et le forfait <b>Illimité / 1 mois</b> 30 jours, à compter de la première connexion. Un forfait en Go prend fin à la fin de sa durée ou quand son volume est épuisé, selon ce qui arrive en premier.</p>
         </details>
         <details>
           <summary>Comment voir ce qu'il me reste ?</summary>
@@ -816,7 +816,7 @@
   //  'demo' : simule un paiement (pour tester la page, AUCUN argent n'est encaissé)
   //  'live' : paiement réel via le serveur GANDAL (dossier serveur/)
   //  'off'  : masque le bouton « Payer en ligne », seul WhatsApp reste
-  var PAYMENT_MODE = 'off';   // à passer en 'live' quand les forfaits de l'Académie seront créés sur le serveur
+  var PAYMENT_MODE = 'live';
   // Adresse de api.php sur le serveur (voir serveur/README.md).
   // Les clés IZI Spot se mettent dans le fichier .env du serveur, JAMAIS ici.
   var PAYMENT_API_URL = 'https://51-21-209-22.sslip.io/api.php';
@@ -825,12 +825,17 @@
   // et c'est le prix de config.php qui est réellement facturé.
   // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php) ;
   // les illimités à volume passent ensuite à « rate_after » (2 Mb/s), indiqué dans desc.
-  // Forfaits du portail de l'Académie : à définir (10 Mb/s et 2 appareils par ticket).
-  var PLANS = [];
+  // Forfaits du portail de l'Académie. L'id doit exister dans serveur/src/config.php (portal 'academie'),
+  // et c'est le prix de config.php qui est réellement facturé. speed = débit du ticket, partagé entre ses 2 appareils.
+  var PLANS = [
+    { id:'acad-5go-1j',    group:'1', name:'5 Go',     period:'1 jour',    price:500,  speed:5,  desc:'Jusqu\'à 23h59' },
+    { id:'acad-20go-7j',   group:'1', name:'20 Go',    period:'1 semaine', price:2000, speed:10, desc:'7 jours dès la 1re connexion' },
+    { id:'acad-illim-30j', group:'1', name:'Illimité', period:'1 mois',    price:3500, speed:10, desc:'30 jours dès la 1re connexion', tag:'Meilleure offre' }
+  ];
   /* ============================================================== */
 
   var GROUPS = [
-    { key:'1', title:'1 appareil', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2"/><path d="M11 18h2"/></svg>' }
+    { key:'1', title:'2 appareils par ticket', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="13" height="10" rx="1.5"/><path d="M6 18h5"/><rect x="16" y="8" width="6" height="12" rx="1.2"/></svg>' }
   ];
   var BOLT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>';
   function speedChip(p){ return p.speed ? '<span class="speed' + (p.speed >= 5 ? ' fast' : '') + '">' + BOLT + p.speed + ' Mb/s</span>' : ''; }
@@ -887,7 +892,7 @@
       var items = PLANS.filter(function(p){ return p.group === g.key; });
       if (!items.length) return;
       html += '<div class="group"><div class="group-head' + (g.special ? ' special' : '') + '"><span class="gh-icon">' + g.icon + '</span>' + g.title + '</div>' +
-        '<div class="speed-legend"><span><span class="speed fast">' + BOLT + '5 Mb/s</span>forfaits en Go, illimités jusqu\'au volume inclus</span><span><span class="speed">' + BOLT + '2 Mb/s</span>illimité 1 jour, illimités au-delà du volume</span></div><div class="tickets">';
+        '<div class="speed-legend"><span>Débit maximal du ticket, partagé entre vos 2 appareils.</span></div><div class="tickets">';
       items.forEach(function(p){
         html += '<div class="ticket' + (g.special ? ' special' : '') + '" data-id="' + p.id + '" role="option" tabindex="0" aria-selected="false">' +
           '<span class="ticket-radio"></span>' +

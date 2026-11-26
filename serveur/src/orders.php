@@ -89,7 +89,7 @@ function provision(array &$o, bool $force): void {
         $o['pending_username'] = $u; $o['pending_password'] = $p;
     }
 
-    $err = um_create_ticket($o['pending_username'], $o['pending_password'], $o['plan_id']);
+    $err = create_ticket($o['pending_username'], $o['pending_password'], $o['plan_id']);   // User Manager ou hotspot2 selon le portail
     if ($err === '') {
         q("INSERT INTO tickets (username, password, plan_id, source, order_reference, assigned_at)
            VALUES (?, ?, ?, 'router', ?, now())",

@@ -29,6 +29,7 @@ function tick(): void {
         try { order_process($r['reference']); } catch (Throwable $e) { logline('commande ' . $r['reference'] . ' : ' . $e->getMessage()); }
     }
     try { day_end_check(); } catch (Throwable $e) { logline('fin de journée : ' . $e->getMessage()); }
+    try { hs2_end_check(); } catch (Throwable $e) { logline('fin de forfait Académie : ' . $e->getMessage()); }
     // Commandes jamais payées depuis plus de 3 heures
     q("UPDATE orders SET status = 'expired' WHERE status = 'pending' AND created_at < now() - interval '3 hours'");
 }

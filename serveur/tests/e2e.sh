@@ -19,7 +19,7 @@ echo "== Démarrage"
 $DC up -d --build --quiet-pull >/dev/null 2>&1 || { echo "docker compose a échoué"; exit 1; }
 for i in $(seq 1 40); do $DC exec -T db pg_isready -U gandal >/dev/null 2>&1 && break; sleep 1; done
 sleep 2; worker
-check "schéma créé, 8 forfaits" "$(sql 'SELECT count(*) FROM plans')" "8"
+check "schéma créé, 11 forfaits (8 GI + 3 Académie)" "$(sql 'SELECT count(*) FROM plans')" "11"
 
 echo "== Paiement et création du ticket sur le routeur"
 check "forfait inconnu refusé" "$(post init '{"plan":"gratuit","phone":"677123456","operator":"mtn"}' | j error)" "Forfait inconnu."
@@ -143,6 +143,40 @@ check "forfait de 3 jours activé hier : pas coupé à minuit" "$(ustate "print(
 E1=$(sql "SELECT ended_at FROM tickets WHERE username='$U3'"); worker
 check "pas de seconde coupure au passage suivant" "$(sql "SELECT ended_at FROM tickets WHERE username='$U3'")" "$E1"
 
+echo "== Portail de l'Académie (hotspot2) : tickets séparés, débit et volume par forfait"
+buy(){ local R; R=$(post init "{\"plan\":\"$1\",\"phone\":\"$2\",\"operator\":\"mtn\"}"); local RF; RF=$(echo "$R" | j reference); local TK; TK=$(echo "$R" | j token)
+       mock "/ctl/pay?ref=$RF"; sleep 5; post status "{\"reference\":\"$RF\",\"token\":\"$TK\"}" | j username; }
+A1=$(buy acad-5go-1j 677100001); A2=$(buy acad-20go-7j 677100002); A3=$(buy acad-illim-30j 677100003)
+[ -n "$A1" ] && [ -n "$A2" ] && [ -n "$A3" ] && ok "3 forfaits Académie achetés et livrés ($A1, $A2, $A3)" || ko "forfaits Académie livrés" "$A1 / $A2 / $A3"
+check "prix Académie appliqués par le serveur (500, 2000, 3500)" "$(sql "SELECT string_agg(o.amount::text, ',' ORDER BY o.amount) FROM orders o JOIN tickets t ON t.order_reference = o.reference WHERE t.username IN ('$A1','$A2','$A3')")" "500,2000,3500"
+check "ticket 5 Go / 1 jour : utilisateur hotspot2, profil 5 Mb/s, 5 Go" "$(ustate "h=d['hsusers']['$A1']; print(h['server'], h['profile'], h['limit-bytes-total'], h['comment'])")" "hotspot2 portail2-5m 5368709120 GANDAL acad-5go-1j"
+check "ticket 20 Go / 1 semaine : profil 10 Mb/s, 20 Go" "$(ustate "h=d['hsusers']['$A2']; print(h['profile'], h['limit-bytes-total'], h['limit-uptime'])")" "portail2 21474836480 7d"
+check "ticket illimité 1 mois : profil 10 Mb/s, sans limite de volume" "$(ustate "h=d['hsusers']['$A3']; print(h['profile'], h.get('limit-bytes-total','aucune'))")" "portail2 aucune"
+check "tickets Académie absents de User Manager (séparés du portail GI)" "$(ustate "print(any(u in d['users'] for u in ['$A1','$A2','$A3']))")" "False"
+worker
+check "avant la première connexion : en attente, pas de date de début" "$(sql "SELECT state || '/' || (first_login_at IS NULL) FROM tickets WHERE username='$A2'")" "waiting/true"
+for u in $A1 $A2 $A3; do mock "/ctl/hslogin?user=$u"; done
+worker
+check "première connexion relevée, ticket en cours" "$(sql "SELECT bool_and(state = 'running-active' AND first_login_at IS NOT NULL) FROM tickets WHERE username IN ('$A1','$A2','$A3')")" "t"
+check "consommation Académie relevée (10 Mo reçus)" "$(sql "SELECT sum(bytes_down) FROM usage_samples WHERE username='$A2'")" "10485760"
+worker
+check "relevé suivant : seulement la différence (+10 Mo)" "$(sql "SELECT sum(bytes_down) FROM usage_samples WHERE username='$A2'")" "20971520"
+check "5 Go / 1 jour : fin ce soir à 23:59:59" "$(sql "SELECT to_char(expires_at AT TIME ZONE 'Africa/Douala', 'YYYY-MM-DD HH24:MI:SS') FROM tickets WHERE username='$A1'")" "$(TZ=Africa/Douala date +%F) 23:59:59"
+check "1 semaine : fin 7 jours après la première connexion" "$(sql "SELECT expires_at - first_login_at FROM tickets WHERE username='$A2'")" "7 days"
+check "1 mois : fin 30 jours après la première connexion" "$(sql "SELECT expires_at - first_login_at FROM tickets WHERE username='$A3'")" "30 days"
+# Première connexion du journalier hier à 23:50, du mensuel il y a 31 jours : les deux sont échus
+sql "UPDATE tickets SET first_login_at = (current_date - 1 + time '23:50') AT TIME ZONE 'Africa/Douala' WHERE username='$A1'" >/dev/null
+sql "UPDATE tickets SET first_login_at = now() - interval '31 days', expires_at = now() - interval '1 day' WHERE username='$A3'" >/dev/null
+worker
+check "journalier activé hier : désactivé sur hotspot2 et session fermée" "$(ustate "print(d['hsusers']['$A1']['disabled'], '$A1' in d['kicked'])")" "yes True"
+check "mensuel échu : désactivé sur hotspot2 et session fermée" "$(ustate "print(d['hsusers']['$A3']['disabled'], '$A3' in d['kicked'])")" "yes True"
+check "fins enregistrées" "$(sql "SELECT count(*) FROM tickets WHERE username IN ('$A1','$A3') AND ended_at IS NOT NULL")" "2"
+check "hebdomadaire en cours : pas coupé" "$(ustate "print(d['hsusers']['$A2']['disabled'])")" "false"
+E2=$(sql "SELECT string_agg(ended_at::text, ',') FROM tickets WHERE username IN ('$A1','$A3')"); worker
+check "pas de seconde coupure" "$(sql "SELECT string_agg(ended_at::text, ',') FROM tickets WHERE username IN ('$A1','$A3')")" "$E2"
+$DC exec -T worker php bin/stock.php acad-20go-7j 1 >/dev/null 2>&1
+check "stock de secours possible pour l'Académie (créé sur hotspot2)" "$(ustate "print(sum(1 for h in d['hsusers'].values() if h.get('comment')=='GANDAL acad-20go-7j'))")" "2"
+
 echo "== Espace d'administration"
 OUT=$($DC exec -T worker php bin/admin.php creer compta1 comptable 2>&1)
 APW=$(echo "$OUT" | sed -n 's/^Mot de passe : //p'); SEC=$(echo "$OUT" | sed -n 's/^Clé 2FA : //p')
@@ -165,6 +199,17 @@ check "rapport PDF des ventes : numéros masqués pour le comptable" "$(curl -s 
 import sys,zlib,re
 d=sys.stdin.buffer.read(); t=b''.join(zlib.decompress(m) for m in re.findall(rb'stream\n(.*?)\nendstream', d, re.S) if not m.startswith(b'\xff\xd8'))
 print('ok' if b'677 \x95\x95 \x95\x95 56' in t and b'677123456' not in t else 'ko')")" "ok"
+for sc in gi academie tous; do for pg in index ventes conso compta tickets; do
+  check "page $pg.php, périmètre $sc" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' "http://127.0.0.1:8088/admin/$pg.php?portail=$sc")" "200"
+done; done
+CA_T=$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=30j&portail=tous&export=csv" | tail -n +2 | awk -F';' '$9 ~ /complete|paid/ {s+=$4} END {print s+0}')
+CA_G=$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=30j&portail=gi&export=csv" | tail -n +2 | awk -F';' '$9 ~ /complete|paid/ {s+=$4} END {print s+0}')
+CA_A=$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=30j&portail=academie&export=csv" | tail -n +2 | awk -F';' '$9 ~ /complete|paid/ {s+=$4} END {print s+0}')
+check "mutualisé = portail GI + Académie ($CA_G + $CA_A)" "$CA_T" "$((CA_G + CA_A))"
+check "ventes Académie : uniquement des forfaits Académie" "$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=30j&portail=academie&export=csv" | tail -n +2 | awk -F';' '{gsub(/"/, "", $3)} $3 !~ /^Académie/' | wc -l)" "0"
+check "ventes portail GI : aucun forfait Académie" "$(curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php?p=30j&portail=gi&export=csv" | tail -n +2 | grep -c 'Académie')" "0"
+check "le périmètre suit l'utilisateur d'une page à l'autre" "$(curl -s -b "$JAR" -c "$JAR" -o /dev/null "http://127.0.0.1:8088/admin/index.php?portail=academie"; curl -s -b "$JAR" "http://127.0.0.1:8088/admin/ventes.php" | grep -c 'class="sc-academie" href="[^"]*" aria-current')" "1"
+curl -s -b "$JAR" -o /dev/null "http://127.0.0.1:8088/admin/index.php?portail=tous"
 check "relance d'un ticket interdite au comptable" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -d "csrf=$(curl -s -b "$JAR" http://127.0.0.1:8088/admin/login.php | sed -n 's/.*name="csrf" value="\([0-9a-f]*\)".*/\1/p' | head -1)&reference=$REF" http://127.0.0.1:8088/admin/tickets.php)" "403"
 check "POST sans jeton CSRF refusé" "$(curl -s -b "$JAR" -o /dev/null -w '%{http_code}' -d "reference=$REF" http://127.0.0.1:8088/admin/tickets.php)" "400"
 check "journal d'audit" "$(sql "SELECT count(*) > 0 FROM audit_log WHERE actor='compta1' AND action='connexion'")" "t"

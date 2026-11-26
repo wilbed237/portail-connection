@@ -40,7 +40,7 @@ $r .= ":if ([:len [/user-manager router find where address=127.0.0.1]] = 0 and [
 $r .= "/ip hotspot profile set [find where name!=\"hsprof2\"] use-radius=yes radius-accounting=yes radius-interim-update=5m\n\n";
 
 $r .= "# ---- 2. Un profil par forfait\n";
-foreach (plans() as $id => $p) {
+foreach (portal_plans('gi') as $id => $p) {   // les forfaits Académie n'utilisent pas User Manager (voir portail2.php)
     $name = um_profile($id);
     $bytes = $p['data_gb'] > 0 ? $p['data_gb'] * 1073741824 : 0;
     $rate = $p['rate'] . 'M';

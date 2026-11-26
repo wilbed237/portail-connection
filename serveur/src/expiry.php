@@ -34,7 +34,7 @@ function day_end_check(): void {
                 WHERE plan_id IN ($in) AND first_login_at IS NOT NULL AND ended_at IS NULL AND state LIKE 'running%'
                   AND " . local_date_sql('first_login_at') . " < " . local_date_sql('now()'), $plans);
     foreach ($due as $t) {
-        $err = um_end($t['username']);
+        $err = ticket_end($t['username'], $t['plan_id']);   // User Manager ou hotspot2 selon le portail
         if ($err !== '') { logline("fin de journée {$t['username']} : $err"); continue; }   // réessayé au passage suivant
         q('UPDATE tickets SET ended_at = now(), updated_at = now() WHERE username = ?', [$t['username']]);
         logline("fin de journée {$t['username']} ({$t['plan_id']}, première connexion " . date('d/m H:i', strtotime($t['first_login_at'])) . ") : ticket désactivé");

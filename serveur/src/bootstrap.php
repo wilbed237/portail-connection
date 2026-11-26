@@ -9,5 +9,6 @@ require __DIR__ . '/orders.php';
 require __DIR__ . '/collector.php';
 require __DIR__ . '/throttle.php';
 require __DIR__ . '/expiry.php';
+require __DIR__ . '/portail2.php';
 require __DIR__ . '/alerts.php';
 require __DIR__ . '/migrate.php';

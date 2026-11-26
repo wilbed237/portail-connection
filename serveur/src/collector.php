@@ -78,6 +78,9 @@ function collect(): void {
         logline('collecte sessions : ' . ros_error($sessions));
     }
 
+    // Tickets du portail de l'Académie (utilisateurs hotspot2) : consommation et état
+    hs2_collect(ros_ok($active) ? ($active['data'] ?? []) : [], $planOf);
+
     // État des tickets (en attente de première connexion, en cours, épuisé…) et date d'expiration
     $ups = ros('GET', '/user-manager/user-profile');
     if (ros_ok($ups)) {
@@ -92,4 +95,5 @@ function collect(): void {
          (SELECT username, min(started_at) AS first FROM usage_sessions GROUP BY username) s
        WHERE t.username = s.username AND t.first_login_at IS NULL AND s.first IS NOT NULL');
     day_end_expiry();   // forfaits « 1 jour » : fin à 23:59:59 du jour de la première connexion, pas celle du routeur
+    hs2_expiry();       // forfaits Académie semaine et mois : première connexion + durée
 }

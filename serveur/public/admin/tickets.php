@@ -16,11 +16,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 $stuck = all("SELECT o.reference, p.label, o.amount, o.phone, o.paid_at, o.provision_attempts, o.provision_error, o.status
-              FROM orders o JOIN plans p ON p.id = o.plan_id WHERE o.status IN ('paid','paid_no_ticket') ORDER BY o.paid_at");
+              FROM orders o JOIN plans p ON p.id = o.plan_id WHERE o.status IN ('paid','paid_no_ticket') AND " . portal_cond('o.plan_id') . " ORDER BY o.paid_at");
 $stock = all("SELECT p.id, p.label, count(t.username) FILTER (WHERE t.order_reference IS NULL AND t.source = 'stock') AS libres
-              FROM plans p LEFT JOIN tickets t ON t.plan_id = p.id GROUP BY p.id, p.label, p.price ORDER BY p.price");
+              FROM plans p LEFT JOIN tickets t ON t.plan_id = p.id WHERE " . portal_cond('p.id') . " GROUP BY p.id, p.label, p.price ORDER BY p.price");
 $stateLabels = ['running-active' => 'En cours', 'running' => 'En cours', 'waiting' => 'Pas encore utilisé', 'used' => 'Terminé (durée ou volume)', 'inconnu' => 'Inconnu'];
-$states = all("SELECT COALESCE(state, 'inconnu') AS state, count(*) AS n FROM tickets WHERE order_reference IS NOT NULL GROUP BY 1 ORDER BY 2 DESC");
+$states = all("SELECT COALESCE(state, 'inconnu') AS state, count(*) AS n FROM tickets WHERE order_reference IS NOT NULL AND " . portal_cond('plan_id') . " GROUP BY 1 ORDER BY 2 DESC");
 
 // ---- Recherche d'un ticket
 $q = trim((string)($_GET['q'] ?? ''));
@@ -43,7 +43,7 @@ if ($q !== '') {
 }
 
 // ---- Tickets en cours
-$planFilter = isset(plans()[$_GET['forfait'] ?? '']) ? $_GET['forfait'] : null;
+$planFilter = isset(scope_plans()[$_GET['forfait'] ?? '']) ? $_GET['forfait'] : null;
 $running = running_tickets($planFilter);
 
 page_start('Tickets', $me, 'tickets.php', 'Tickets en cours, recherche, stock de secours et clients à relancer');
@@ -91,7 +91,7 @@ foreach ($running as $t) {
            . '<td class="n">' . h(remaining($t['expires_at'])) . '</td></tr>';
 }
 $online = count(array_filter($running, fn($t) => $t['online']));
-$opts = ['' => 'Tous les forfaits'] + array_map(fn($p) => $p['label'], plans());
+$opts = ['' => 'Tous les forfaits'] + array_map(fn($p) => $p['label'], scope_plans());
 $filter = '<form method="get" class="filters" style="margin:0"><label>Forfait<select name="forfait" data-autosubmit>';
 foreach ($opts as $k => $l) { $filter .= '<option value="' . h($k) . '"' . (($planFilter ?? '') === $k ? ' selected' : '') . '>' . h($l) . '</option>'; }
 $filter .= '</select></label><noscript><button type="submit">Filtrer</button></noscript></form>';

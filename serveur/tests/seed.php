@@ -18,6 +18,8 @@ db()->exec('DELETE FROM tickets; DELETE FROM orders;');
 
 $plans = plans();
 $weights = ['1go-1j' => 30, 'illim-1j' => 24, '4go-3j' => 15, '8go-5j' => 10, '20go-7j' => 8, 'illim-7j' => 7, 'illim-14j' => 4, 'illim-30j' => 2];
+// Portail de l'Académie : ouvert depuis 25 jours
+$acadWeights = ['acad-5go-1j' => 14, 'acad-20go-7j' => 6, 'acad-illim-30j' => 4];
 $hourW = [1, 0.6, 0.3, 0.2, 0.2, 0.3, 0.8, 1.5, 2.2, 2.6, 2.8, 3, 3.4, 3.2, 3, 3, 3.3, 3.8, 4.6, 5.4, 5.8, 5.2, 3.8, 2.2];
 $GB = 1073741824;
 
@@ -38,7 +40,7 @@ for ($d = 89; $d >= 0; $d--) {
         $h = pick_w($hourKeys);
         $t = $day + $h * 3600 + mt_rand(0, 3599);
         if ($t > $now) { continue; }
-        $plan = pick_w($weights);
+        $plan = pick_w($d <= 25 ? $weights + $acadWeights : $weights);
         $p = $plans[$plan];
         $r = mt_rand(1, 100);
         $status = $r <= 88 ? 'complete' : ($r <= 95 ? 'failed' : 'expired');

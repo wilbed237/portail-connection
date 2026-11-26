@@ -8,7 +8,7 @@ $me = require_admin();
 $par = in_array($_GET['par'] ?? '', ['hour', 'day', 'week', 'month', 'year'], true) ? $_GET['par'] : '';
 $grain = $par ?: zoom_grain($from, $to);
 $grainLabel = ['hour' => 'Heure', 'day' => 'Jour', 'week' => 'Semaine', 'month' => 'Mois', 'year' => 'Année'][$grain];
-$range = "ts >= ?::date AND ts < ?::date + interval '1 day'";
+$range = "ts >= ?::date AND ts < ?::date + interval '1 day' AND " . portal_cond('plan_id');
 $args = [$from, $to];
 
 $series = all("SELECT date_trunc('$grain', ts) AS periode, sum(bytes_down) AS down, sum(bytes_up) AS up, count(DISTINCT username) AS users
@@ -20,7 +20,7 @@ foreach (all("SELECT extract(isodow FROM ts)::int AS d, extract(hour FROM ts)::i
               FROM usage_samples WHERE $range GROUP BY 1, 2", $args) as $r) { $heat[(int)$r['d']][(int)$r['h']] = (float)$r['b']; }
 $top = all("SELECT s.username, COALESCE(p.label, '') AS label, sum(s.bytes_down + s.bytes_up) AS total, t.state
             FROM usage_samples s LEFT JOIN plans p ON p.id = s.plan_id LEFT JOIN tickets t ON t.username = s.username
-            WHERE $range GROUP BY 1, 2, 4 ORDER BY 3 DESC LIMIT 10", $args);
+            WHERE " . "ts >= ?::date AND ts < ?::date + interval '1 day' AND " . portal_cond('s.plan_id') . " GROUP BY 1, 2, 4 ORDER BY 3 DESC LIMIT 10", $args);
 
 $fmtPeriod = function (string $ts) use ($grain): string {
     $t = strtotime($ts);
@@ -63,7 +63,7 @@ if ($grain === 'week') {
                     'tip' => zoom_label($grain, $k, true) . ' · ' . (int)$r['users'] . ' utilisateurs', 'href' => zoom_href($grain, $k, $from, $to)], fn($v) => $v !== null);
     }
 }
-$since = val("SELECT min(ts)::date FROM usage_samples");
+$since = val("SELECT min(ts)::date FROM usage_samples WHERE " . portal_cond('plan_id'));
 $peakDay = null; $peakHour = null; $pv = 0;
 foreach ($heat as $d => $hs) { foreach ($hs as $hh => $v) { if ($v > $pv) { $pv = $v; $peakDay = $d; $peakHour = $hh; } } }
 $jours = [1 => 'lundi', 2 => 'mardi', 3 => 'mercredi', 4 => 'jeudi', 5 => 'vendredi', 6 => 'samedi', 7 => 'dimanche'];
