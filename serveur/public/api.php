@@ -1,9 +1,10 @@
 <?php
 /*
  * API appelée par le portail captif (login.html).
- *   POST api.php?action=init    {plan, phone, operator}            -> {ok, reference, token}
+ *   POST api.php?action=init    {plan, phone, operator, mac?}      -> {ok, reference, token}
  *   POST api.php?action=status  {reference, token} | {reference, phone}
  *                               -> {ok, status, plan, username?, password?}
+ *   POST api.php?action=tickets {mac, portal}                       -> {ok, tickets:[{ref, plan_id, plan, user, pass, date}]}
  * Statuts renvoyés : pending, complete, paid_no_stock, failed, canceled, expired
  */
 
@@ -36,6 +37,7 @@ try {
         if (!isset($plans[$planId])) { json_out(['ok' => false, 'error' => 'Forfait inconnu.'], 400); }
         if ($phone === null) { json_out(['ok' => false, 'error' => 'Numéro invalide : 9 chiffres commençant par 6.'], 400); }
         if (!in_array($operator, ['mtn', 'orange'], true)) { json_out(['ok' => false, 'error' => 'Opérateur invalide.'], 400); }
+        $mac = normalize_mac((string)($in['mac'] ?? ''));   // facultatif : absent hors du hotspot
 
         // On ne vend pas un forfait qu'on ne pourrait pas livrer : routeur injoignable ET stock vide.
         $h = one('SELECT reachable FROM router_health WHERE ts > now() - interval \'15 minutes\' ORDER BY ts DESC LIMIT 1');
@@ -77,10 +79,10 @@ try {
             json_out(['ok' => false, 'error' => $msg], 502);
         }
 
-        q('INSERT INTO orders (reference, provider_id, token_hash, plan_id, amount, fee, phone, operator)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        q('INSERT INTO orders (reference, provider_id, token_hash, plan_id, amount, fee, phone, operator, device_mac)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
           [$ref, (string)$p['id'], hash('sha256', $token), $planId, $plan['price'],
-           isset($p['fee']) ? (int)$p['fee'] : pay_fee($plan['price']), $phone, $operator]);
+           isset($p['fee']) ? (int)$p['fee'] : pay_fee($plan['price']), $phone, $operator, $mac]);
 
         json_out(['ok' => true, 'reference' => $ref, 'token' => $token, 'status' => 'pending']);
     }
@@ -108,6 +110,35 @@ try {
 
         $o = order_process($ref);
         json_out(order_public($o));
+    }
+
+    /* ===================== Derniers tickets de l'appareil ===================== */
+    // Seulement les tickets encore utilisables, achetés il y a moins de 35 jours, sur ce portail :
+    // limite ce qu'exposerait une adresse MAC usurpée sur le même réseau.
+    if ($action === 'tickets') {
+        // Tous les clients d'un portail sortent par la même adresse publique : limite large
+        if (!rate_limit('tickets:' . $ip, 600, 600)) {
+            json_out(['ok' => false, 'error' => 'Trop de demandes. Réessayez dans quelques minutes.'], 429);
+        }
+        $mac = normalize_mac((string)($in['mac'] ?? ''));
+        $portal = (string)($in['portal'] ?? 'gi');
+        if ($mac === null) { json_out(['ok' => false, 'error' => 'Adresse d\'appareil invalide.'], 400); }
+        if (!in_array($portal, ['gi', 'academie'], true)) { json_out(['ok' => false, 'error' => 'Portail inconnu.'], 400); }
+        $ids = array_keys(portal_plans($portal));
+        if (!$ids) { json_out(['ok' => true, 'tickets' => []]); }
+        $in_ = implode(',', array_fill(0, count($ids), '?'));
+        $rows = all("SELECT o.reference, o.plan_id, o.delivered_at, t.username, t.password
+                     FROM orders o JOIN tickets t ON t.username = o.ticket_username
+                     WHERE o.device_mac = ? AND o.status = 'complete' AND o.plan_id IN ($in_)
+                       AND o.delivered_at > now() - interval '35 days'
+                       AND t.ended_at IS NULL AND COALESCE(t.state, '') <> 'used'
+                       AND (t.expires_at IS NULL OR t.expires_at > now())
+                     ORDER BY o.delivered_at DESC LIMIT 3", array_merge([$mac], $ids));
+        $plans = plans();
+        json_out(['ok' => true, 'tickets' => array_map(fn($r) => [
+            'ref' => $r['reference'], 'plan_id' => $r['plan_id'], 'plan' => $plans[$r['plan_id']]['label'] ?? $r['plan_id'],
+            'user' => $r['username'], 'pass' => $r['password'], 'date' => date('c', strtotime($r['delivered_at'])),
+        ], $rows)]);
     }
 
     json_out(['ok' => false, 'error' => 'Action inconnue.'], 400);

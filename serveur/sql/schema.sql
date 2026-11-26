@@ -42,6 +42,10 @@ CREATE TABLE IF NOT EXISTS orders (
 CREATE INDEX IF NOT EXISTS orders_status_idx  ON orders (status);
 CREATE INDEX IF NOT EXISTS orders_created_idx ON orders (created_at);
 CREATE UNIQUE INDEX IF NOT EXISTS orders_provider_idx ON orders (provider_id) WHERE provider_id IS NOT NULL;
+-- Adresse MAC de l'appareil qui a acheté (variable $(mac) du hotspot) : « Mes 3 derniers tickets »
+-- retrouvés sur le téléphone, quel que soit le navigateur (la fenêtre du portail captif efface sa mémoire)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS device_mac text;
+CREATE INDEX IF NOT EXISTS orders_mac_idx ON orders (device_mac, delivered_at) WHERE device_mac IS NOT NULL;
 
 -- Tickets (utilisateurs User Manager). order_reference UNIQUE : un paiement ne donne qu'un ticket.
 CREATE TABLE IF NOT EXISTS tickets (

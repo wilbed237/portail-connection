@@ -447,11 +447,13 @@
         <input type="hidden" name="username"><input type="hidden" name="password">
         <input type="hidden" name="dst" value="$(link-orig)"><input type="hidden" name="popup" value="true">
       </form>
+      <!-- Adresse MAC de l'appareil, remplie par le routeur : retrouve ses tickets quel que soit le navigateur -->
+      <input type="hidden" id="devMac" value="$(mac)">
 
       <div class="my-tickets" id="myTickets">
         <h3>Mes 3 derniers tickets</h3>
         <div id="myTicketsList"></div>
-        <p class="mt-note">Gardés sur cet appareil, dans ce navigateur. Notez-les aussi ailleurs : ils s'effacent si vous videz les données du navigateur.</p>
+        <p class="mt-note">Retrouvés pour cet appareil tant qu'ils sont valides. Notez-les aussi ailleurs, par prudence.</p>
       </div>
 
       <p class="terms">En vous connectant, vous acceptez les <a href="#" data-goto="aide" data-anchor="conditions">conditions d'utilisation</a> du réseau.</p>
@@ -812,6 +814,7 @@
   // Le routeur MikroTik remplace toute suite « dollar + parenthèse » par ses variables,
   // y compris dans ce script : n'en écrivez jamais ici.
   var UNSET = '$' + '(';  // début d'une variable MikroTik non remplacée
+  var PORTAL = 'gi';      // portail de cette page (filtre les tickets renvoyés par le serveur)
   function fmt(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' F'; }
   function esc(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
   function waLink(msg){ return 'https://wa.me/' + WHATSAPP_NUMBER + '?text=' + encodeURIComponent(msg); }
@@ -1027,7 +1030,7 @@
     if (!op) return payError('Choisissez votre opérateur : MTN MoMo ou Orange Money.');
     payError('');
     var btn = byId('paySubmit'); btn.disabled = true; btn.firstChild.textContent = 'Envoi de la demande… ';
-    api('init', { plan: selected.id, phone: phone, operator: op }).then(function(res){
+    api('init', { plan: selected.id, phone: phone, operator: op, mac: deviceMac() }).then(function(res){
       btn.disabled = false; btn.firstChild.textContent = 'Payer ';
       if (!res.ok) return payError(res.error || 'Le paiement n\'a pas pu être lancé. Réessayez.');
       current = { reference: res.reference, token: res.token, plan: selected.id, phone: phone, operator: op, started: Date.now() };
@@ -1179,13 +1182,40 @@
       document.cookie = 'ws_tickets=' + encodeURIComponent(JSON.stringify(val)) + '; max-age=' + (180 * 86400) + '; path=/; SameSite=Lax';
     } catch(e){ return null; }
   }
-  function loadTickets(){
+  function deviceMac(){
+    var el = byId('devMac'), v = el ? el.value.trim() : '';
+    return /^[0-9A-Fa-f]{2}([:-][0-9A-Fa-f]{2}){5}$/.test(v) ? v : '';
+  }
+  // Mémoire du navigateur (effacée sur téléphone : la fenêtre du portail captif ne garde rien)
+  function localTickets(){
     var list = store('ws_tickets');
     if (!Array.isArray(list) || !list.length) { list = ticketCookie(); }
     return Array.isArray(list) ? list.filter(function(t){ return t && t.user; }).slice(0, MAX_TICKETS) : [];
   }
+  // Tickets que le serveur connaît pour cet appareil (adresse MAC), fusionnés avec ceux du navigateur
+  var serverTickets = [];
+  function loadTickets(){
+    var seen = {}, all = serverTickets.concat(localTickets()).filter(function(t){
+      if (!t || !t.user || seen[t.user]) return false;
+      seen[t.user] = true; return true;
+    });
+    all.sort(function(a, b){ return (Date.parse(b.date) || 0) - (Date.parse(a.date) || 0); });
+    return all.slice(0, MAX_TICKETS);
+  }
+  function fetchServerTickets(){
+    var mac = deviceMac();
+    if (!mac || PAYMENT_MODE !== 'live') return;
+    api('tickets', { mac: mac, portal: PORTAL }).then(function(res){
+      if (!res.ok || !Array.isArray(res.tickets)) return;
+      serverTickets = res.tickets.map(function(t){
+        var p = planById(t.plan_id);
+        return { ref: t.ref, plan: p ? planLabel(p) : (t.plan || ''), user: t.user, pass: t.pass, date: t.date };
+      });
+      renderTickets();
+    });
+  }
   function saveTicket(t){
-    var list = loadTickets().filter(function(x){ return x.ref !== t.ref && x.user !== t.user; });
+    var list = localTickets().filter(function(x){ return x.ref !== t.ref && x.user !== t.user; });
     list.unshift(t);
     list = list.slice(0, MAX_TICKETS);
     store('ws_tickets', list);
@@ -1209,6 +1239,7 @@
     });
   }
   renderTickets();
+  fetchServerTickets();
 
   // ---- Paiement en attente (page rechargée ou retour de la page de paiement) ----
   (function(){

@@ -7,6 +7,12 @@ function normalize_phone(string $p): ?string {
     return preg_match('/^6\d{8}$/', $p) ? $p : null;
 }
 
+/* Adresse MAC envoyée par le portail (variable $(mac) du hotspot) -> AA:BB:CC:DD:EE:FF, ou null */
+function normalize_mac(string $m): ?string {
+    $m = strtoupper(trim($m));
+    return preg_match('/^[0-9A-F]{2}([:-][0-9A-F]{2}){5}$/', $m) ? str_replace('-', ':', $m) : null;
+}
+
 function mask_phone(string $p): string { return strlen($p) === 9 ? substr($p, 0, 3) . ' •• •• ' . substr($p, 7) : '•••'; }
 
 /* Identifiant lisible sans caractères ambigus (0/o, 1/l/i) et mot de passe à 6 chiffres. */

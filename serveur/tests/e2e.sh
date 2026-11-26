@@ -144,7 +144,7 @@ E1=$(sql "SELECT ended_at FROM tickets WHERE username='$U3'"); worker
 check "pas de seconde coupure au passage suivant" "$(sql "SELECT ended_at FROM tickets WHERE username='$U3'")" "$E1"
 
 echo "== Portail de l'Académie (hotspot2) : tickets séparés, débit et volume par forfait"
-buy(){ local R; R=$(post init "{\"plan\":\"$1\",\"phone\":\"$2\",\"operator\":\"mtn\"}"); local RF; RF=$(echo "$R" | j reference); local TK; TK=$(echo "$R" | j token)
+buy(){ local R; R=$(post init "{\"plan\":\"$1\",\"phone\":\"$2\",\"operator\":\"mtn\",\"mac\":\"${3:-}\"}"); local RF; RF=$(echo "$R" | j reference); local TK; TK=$(echo "$R" | j token)
        mock "/ctl/pay?ref=$RF"; sleep 5; post status "{\"reference\":\"$RF\",\"token\":\"$TK\"}" | j username; }
 A1=$(buy acad-5go-1j 677100001); A2=$(buy acad-20go-7j 677100002); A3=$(buy acad-illim-30j 677100003)
 [ -n "$A1" ] && [ -n "$A2" ] && [ -n "$A3" ] && ok "3 forfaits Académie achetés et livrés ($A1, $A2, $A3)" || ko "forfaits Académie livrés" "$A1 / $A2 / $A3"
@@ -176,6 +176,25 @@ E2=$(sql "SELECT string_agg(ended_at::text, ',') FROM tickets WHERE username IN 
 check "pas de seconde coupure" "$(sql "SELECT string_agg(ended_at::text, ',') FROM tickets WHERE username IN ('$A1','$A3')")" "$E2"
 $DC exec -T worker php bin/stock.php acad-20go-7j 1 >/dev/null 2>&1
 check "stock de secours possible pour l'Académie (créé sur hotspot2)" "$(ustate "print(sum(1 for h in d['hsusers'].values() if h.get('comment')=='GANDAL acad-20go-7j'))")" "2"
+
+echo "== Derniers tickets retrouvés par l'adresse MAC de l'appareil"
+tk(){ post tickets "{\"mac\":\"$1\",\"portal\":\"$2\"}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(','.join(t['user'] for t in d.get('tickets',[])) if d.get('ok') else 'refus')"; }
+M1=AA:BB:CC:00:00:01; M2=AA:BB:CC:00:00:02
+G1=$(buy 4go-3j 677200001 "$M1"); G2=$(buy 1go-1j 677200002 "aa-bb-cc-00-00-01"); C1=$(buy acad-20go-7j 677200003 "$M2")
+check "adresse MAC enregistrée avec la commande (normalisée)" "$(sql "SELECT string_agg(DISTINCT device_mac, ',') FROM orders o JOIN tickets t ON t.order_reference = o.reference WHERE t.username IN ('$G1','$G2')")" "$M1"
+check "portail GI : les 2 tickets de l'appareil, le plus récent d'abord" "$(tk $M1 gi)" "$G2,$G1"
+check "mot de passe renvoyé = celui du ticket" "$(post tickets "{\"mac\":\"$M1\",\"portal\":\"gi\"}" | python3 -c "import sys,json; print(json.load(sys.stdin)['tickets'][0]['pass'])")" "$(sql "SELECT password FROM tickets WHERE username='$G2'")"
+check "portail Académie : pas les tickets GI du même appareil" "$(tk $M1 academie)" ""
+check "portail Académie : le ticket Académie de l'appareil" "$(tk $M2 academie)" "$C1"
+check "autre appareil : aucun ticket" "$(tk AA:BB:CC:00:00:09 gi)" ""
+check "adresse MAC invalide refusée" "$(tk 'nimporte' gi)" "refus"
+check "achat sans adresse MAC (hors hotspot) accepté" "$(buy 4go-3j 677200004 | grep -c .)" "1"
+sql "UPDATE tickets SET ended_at = now() WHERE username = '$G2'" >/dev/null
+check "ticket terminé : plus renvoyé" "$(tk $M1 gi)" "$G1"
+sql "UPDATE tickets SET ended_at = NULL, expires_at = now() - interval '1 hour' WHERE username = '$G1'" >/dev/null
+check "ticket expiré : plus renvoyé" "$(tk $M1 gi)" ""
+sql "UPDATE orders SET delivered_at = now() - interval '40 days' WHERE ticket_username = '$G2'; UPDATE tickets SET ended_at = NULL WHERE username = '$G2'" >/dev/null
+check "ticket acheté il y a plus de 35 jours : plus renvoyé" "$(tk $M1 gi)" ""
 
 echo "== Espace d'administration"
 OUT=$($DC exec -T worker php bin/admin.php creer compta1 comptable 2>&1)
