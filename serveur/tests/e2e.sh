@@ -22,7 +22,7 @@ sleep 2; worker
 check "schéma créé, 11 forfaits (8 GI + 3 Académie)" "$(sql 'SELECT count(*) FROM plans')" "11"
 
 echo "== Paiement et création du ticket sur le routeur"
-check "forfait inconnu refusé" "$(post init '{"plan":"gratuit","phone":"677123456","operator":"mtn"}' | j error)" "Forfait inconnu."
+check "forfait inconnu refusé" "$(post init '{"plan":"gratuit","phone":"677123456","operator":"mtn"}' | j error)" "Ce forfait n'existe plus. Rechargez la page et choisissez-en un autre."
 check "numéro invalide refusé" "$(post init '{"plan":"illim-7j","phone":"12345","operator":"mtn"}' | j ok)" "False"
 R=$(post init '{"plan":"illim-7j","phone":"+237 677 12 34 56","operator":"mtn","price":1}')
 REF=$(echo "$R" | j reference); TOK=$(echo "$R" | j token)

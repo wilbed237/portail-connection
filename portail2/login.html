@@ -857,11 +857,22 @@
     } catch(e){ return null; }
   }
 
-  // ---- Message d'erreur MikroTik ----
+  // ---- Message d'erreur du routeur (en anglais) traduit en phrase simple ----
+  function routerError(t){
+    var s = t.toLowerCase();
+    if (/no more sessions|shared|too many/.test(s)) return 'Ce ticket est déjà utilisé sur le nombre maximal d\'appareils. Déconnectez un autre appareil, puis réessayez.';
+    if (/uptime limit|session timeout|expired|validity/.test(s)) return 'Ce ticket est arrivé à la fin de sa durée. Achetez un nouveau forfait pour continuer.';
+    if (/traffic limit|bytes|quota|transfer limit/.test(s)) return 'Ce ticket a utilisé tout son volume. Achetez un nouveau forfait pour continuer.';
+    if (/disabled|no active profile|no profile|not active/.test(s)) return 'Ce ticket n\'est plus actif. Achetez un nouveau forfait, ou écrivez-nous sur WhatsApp si vous pensez que c\'est une erreur.';
+    if (/not allowed|mac address/.test(s)) return 'Ce ticket ne peut pas être utilisé sur cet appareil ou sur ce Wi-Fi.';
+    if (/invalid username or password|invalid password|invalid user|no such user|wrong/.test(s)) return 'Identifiant ou mot de passe incorrect. Vérifiez-les (attention aux espaces) et réessayez.';
+    if (/radius|not responding|timeout|try again|retry/.test(s)) return 'La connexion n\'a pas abouti. Patientez quelques secondes, puis réessayez.';
+    return 'La connexion a échoué. Vérifiez votre identifiant et votre mot de passe, puis réessayez.';
+  }
   (function(){
     var box = byId('errorBox');
     var txt = box.textContent.trim();
-    if (txt !== '' && txt.indexOf(UNSET) !== 0) { box.style.display = 'block'; }
+    if (txt !== '' && txt.indexOf(UNSET) !== 0) { box.textContent = routerError(txt); box.title = txt; box.style.display = 'block'; }
   })();
 
   // ---- Numéro de contact ----
@@ -1035,9 +1046,9 @@
     return fetch(PAYMENT_API_URL + '?action=' + action, {
       method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify(payload)
     }).then(function(r){
-      return r.json().catch(function(){ return { ok:false, error:'Réponse invalide du serveur (' + r.status + ').' }; });
+      return r.json().catch(function(){ return { ok:false, error:'Le service de paiement a mal répondu. Réessayez dans un instant.' }; });
     }, function(){
-      return { ok:false, error:"Le serveur de paiement est injoignable. Vérifiez qu'il est autorisé dans le walled-garden du hotspot." };
+      return { ok:false, error:"Impossible de joindre le service de paiement. Vérifiez que vous êtes bien connecté au Wi-Fi, puis réessayez." };
     });
   }
 
@@ -1062,13 +1073,13 @@
   byId('payForm').addEventListener('submit', function(e){
     e.preventDefault();
     var phone = cleanPhone(byId('payPhone').value);
-    if (!/^6\d{8}$/.test(phone)) return payError('Entrez un numéro camerounais à 9 chiffres, par exemple 677 12 34 56.');
+    if (!/^6\d{8}$/.test(phone)) return payError('Le numéro doit avoir 9 chiffres et commencer par 6, par exemple 677 12 34 56.');
     if (!op) return payError('Choisissez votre opérateur : MTN MoMo ou Orange Money.');
     payError('');
     var btn = byId('paySubmit'); btn.disabled = true; btn.firstChild.textContent = 'Envoi de la demande… ';
     api('init', { plan: selected.id, phone: phone, operator: op, mac: deviceMac() }).then(function(res){
       btn.disabled = false; btn.firstChild.textContent = 'Payer ';
-      if (!res.ok) return payError(res.error || 'Le paiement n\'a pas pu être lancé. Réessayez.');
+      if (!res.ok) return payError(res.error || 'Le paiement n\'a pas pu démarrer. Réessayez.');
       current = { reference: res.reference, token: res.token, plan: selected.id, phone: phone, operator: op, started: Date.now() };
       store('ws_pending', current);
       // Si l'opérateur exige une page de paiement externe, on y redirige.
@@ -1101,7 +1112,7 @@
       if (done) return;
       if (Date.now() > deadline) {
         stopPolling();
-        return fail('Délai dépassé', "Nous n'avons pas reçu la confirmation. Si vous avez été débité, utilisez « Retrouver un ticket » dans l'onglet Aide avec la référence " + current.reference + '.');
+        return fail('Pas de confirmation', "Votre opérateur n'a pas encore confirmé le paiement. Si l'argent a été retiré de votre compte, ne payez pas une seconde fois : allez dans Aide, « Retrouver un ticket », avec la référence " + current.reference + '.');
       }
       pollTimer = setTimeout(function(){ poll(deadline); }, 4000);
     });
@@ -1113,12 +1124,12 @@
       if (res.status === 'complete' && res.username) { success(res); return true; }
       if (res.status === 'paid_no_stock') {
         stopPolling(); store('ws_pending', null);
-        fail('Paiement reçu', 'Votre paiement est confirmé mais aucun ticket n\'est disponible pour le moment. Contactez un agent sur WhatsApp avec la référence ' + current.reference + ' : il vous remettra vos identifiants.');
+        fail('Paiement reçu', 'Votre paiement est bien reçu, mais votre ticket n\'est pas encore prêt. Écrivez-nous sur WhatsApp avec la référence ' + current.reference + ' : nous vous l\'envoyons.');
         return true;
       }
       if (res.status === 'failed' || res.status === 'canceled' || res.status === 'expired') {
         stopPolling(); store('ws_pending', null);
-        fail('Paiement non abouti', res.message || 'Le paiement a été refusé ou annulé. Aucun montant n\'a été prélevé.');
+        fail('Paiement non validé', res.message || 'Le paiement n\'a pas été confirmé : annulé, code non saisi ou solde insuffisant. Vous n\'avez pas été débité, vous pouvez réessayer.');
         return true;
       }
       return false;
@@ -1301,7 +1312,7 @@
     var ref = byId('recoverRef').value.trim().toUpperCase();
     var phone = cleanPhone(byId('recoverPhone').value);
     var msg = byId('recoverMsg');
-    if (!ref || !/^6\d{8}$/.test(phone)) { msg.style.color = 'var(--red)'; msg.textContent = 'Entrez la référence et le numéro à 9 chiffres qui a payé.'; return; }
+    if (!ref || !/^6\d{8}$/.test(phone)) { msg.style.color = 'var(--red)'; msg.textContent = 'Entrez la référence et le numéro de 9 chiffres qui a payé.'; return; }
     if (PAYMENT_MODE !== 'live') { msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Disponible quand le paiement en ligne est activé.'; return; }
     msg.style.color = 'var(--ink-soft)'; msg.textContent = 'Recherche…';
     api('status', { reference: ref, phone: phone }).then(function(res){
@@ -1311,7 +1322,10 @@
         openSheet(); success(res);
       } else {
         msg.style.color = 'var(--red)';
-        msg.textContent = res.ok ? 'Ce paiement n\'est pas encore confirmé (statut : ' + res.status + ').' : (res.error || 'Ticket introuvable.');
+        msg.textContent = !res.ok ? (res.error || 'Aucun ticket trouvé.')
+          : res.status === 'pending' ? 'Ce paiement n\'est pas encore confirmé. Patientez une minute, puis réessayez.'
+          : res.status === 'paid_no_stock' ? 'Paiement reçu, ticket en préparation : écrivez-nous sur WhatsApp avec cette référence.'
+          : 'Ce paiement n\'a pas abouti : aucun ticket n\'a été créé et vous n\'avez pas été débité.';
       }
     });
   });

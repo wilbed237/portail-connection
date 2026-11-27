@@ -16,11 +16,11 @@ header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 header('X-Content-Type-Options: nosniff');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') { http_response_code(204); exit; }
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { json_out(['ok' => false, 'error' => 'Méthode non autorisée.'], 405); }
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') { json_out(['ok' => false, 'error' => 'Cette adresse ne s\'ouvre pas directement.'], 405); }
 
 $raw = (string)file_get_contents('php://input', false, null, 0, 4096);
 $in = json_decode($raw, true);
-if (!is_array($in)) { json_out(['ok' => false, 'error' => 'Requête invalide.'], 400); }
+if (!is_array($in)) { json_out(['ok' => false, 'error' => 'La demande est incomplète. Rechargez la page et réessayez.'], 400); }
 $action = $_GET['action'] ?? '';
 $ip = client_ip();
 
@@ -28,15 +28,15 @@ try {
     /* ===================== Lancer un paiement ===================== */
     if ($action === 'init') {
         if (!rate_limit('init:' . $ip, 60, 600)) {
-            json_out(['ok' => false, 'error' => 'Trop de demandes. Réessayez dans quelques minutes.'], 429);
+            json_out(['ok' => false, 'error' => 'Beaucoup d\'achats en même temps. Patientez quelques minutes, puis réessayez.'], 429);
         }
         $plans = plans();
         $planId = (string)($in['plan'] ?? '');
         $phone = normalize_phone((string)($in['phone'] ?? ''));
         $operator = (string)($in['operator'] ?? '');
-        if (!isset($plans[$planId])) { json_out(['ok' => false, 'error' => 'Forfait inconnu.'], 400); }
-        if ($phone === null) { json_out(['ok' => false, 'error' => 'Numéro invalide : 9 chiffres commençant par 6.'], 400); }
-        if (!in_array($operator, ['mtn', 'orange'], true)) { json_out(['ok' => false, 'error' => 'Opérateur invalide.'], 400); }
+        if (!isset($plans[$planId])) { json_out(['ok' => false, 'error' => 'Ce forfait n\'existe plus. Rechargez la page et choisissez-en un autre.'], 400); }
+        if ($phone === null) { json_out(['ok' => false, 'error' => 'Ce numéro ne semble pas correct : il doit avoir 9 chiffres et commencer par 6, par exemple 677 12 34 56.'], 400); }
+        if (!in_array($operator, ['mtn', 'orange'], true)) { json_out(['ok' => false, 'error' => 'Choisissez votre opérateur : MTN MoMo ou Orange Money.'], 400); }
         $mac = normalize_mac((string)($in['mac'] ?? ''));   // facultatif : absent hors du hotspot
 
         // On ne vend pas un forfait qu'on ne pourrait pas livrer : routeur injoignable ET stock vide.
@@ -44,7 +44,7 @@ try {
         $routerDown = $h !== null && !$h['reachable'];
         $stock = (int)val("SELECT count(*) FROM tickets WHERE source = 'stock' AND order_reference IS NULL AND plan_id = ?", [$planId]);
         if ($routerDown && $stock === 0) {
-            json_out(['ok' => false, 'error' => 'Ce forfait est momentanément indisponible. Réessayez plus tard ou contactez un agent.'], 503);
+            json_out(['ok' => false, 'error' => 'Ce forfait n\'est pas disponible pour le moment. Réessayez un peu plus tard, ou écrivez-nous sur WhatsApp.'], 503);
         }
 
         $plan = $plans[$planId];
@@ -71,10 +71,10 @@ try {
         if (!in_array($res['code'], [200, 202], true) || empty($p['id'])) {
             logline('création paiement : ' . pay_error($res));
             $msg = match ($p['error'] ?? '') {
-                'rate_limited'       => 'Beaucoup de paiements en ce moment. Réessayez dans une minute.',
-                'payment_init_failed' => "L'opérateur n'a pas pu envoyer la demande de paiement. Vérifiez le numéro et réessayez.",
-                'validation_error'   => 'Numéro ou forfait refusé par le service de paiement. Vérifiez le numéro.',
-                default              => 'Le service de paiement ne répond pas. Réessayez dans un instant ou commandez sur WhatsApp.',
+                'rate_limited'       => 'Le service de paiement est très sollicité. Réessayez dans une minute.',
+                'payment_init_failed' => "Votre opérateur n'a pas pu envoyer la demande de paiement. Vérifiez le numéro et l'opérateur choisi, puis réessayez.",
+                'validation_error'   => 'Le numéro n\'a pas été accepté. Vérifiez qu\'il correspond bien à l\'opérateur choisi.',
+                default              => 'Le paiement ne répond pas pour le moment. Réessayez dans un instant, ou achetez votre ticket sur WhatsApp.',
             };
             json_out(['ok' => false, 'error' => $msg], 502);
         }
@@ -92,7 +92,7 @@ try {
         $ref = strtoupper(trim((string)($in['reference'] ?? '')));
         $token = (string)($in['token'] ?? '');
         $phone = normalize_phone((string)($in['phone'] ?? ''));
-        if (!preg_match('/^[A-Z0-9-]{6,40}$/', $ref)) { json_out(['ok' => false, 'error' => 'Référence invalide.'], 400); }
+        if (!preg_match('/^[A-Z0-9-]{6,40}$/', $ref)) { json_out(['ok' => false, 'error' => 'Cette référence n\'est pas valide. Elle ressemble à GD-261127-A1B2C3.'], 400); }
 
         $o = one('SELECT reference, token_hash, phone, recover_failures FROM orders WHERE reference = ?', [$ref]);
         $byToken = $o && $token !== '' && hash_equals($o['token_hash'], hash('sha256', $token));
@@ -100,11 +100,11 @@ try {
         if (!$byToken) {
             // Recherche par numéro (« Retrouver un ticket ») : protégée contre les essais en série.
             if (!rate_limit('recover:' . $ip, 30, 900)) {
-                json_out(['ok' => false, 'error' => 'Trop de recherches. Réessayez dans 15 minutes.'], 429);
+                json_out(['ok' => false, 'error' => 'Trop d\'essais. Patientez 15 minutes avant de réessayer.'], 429);
             }
             if (!$o || $phone === null || (int)$o['recover_failures'] >= 5 || !hash_equals($o['phone'], $phone)) {
                 if ($o) { q('UPDATE orders SET recover_failures = recover_failures + 1 WHERE reference = ?', [$ref]); }
-                json_out(['ok' => false, 'error' => 'Aucun paiement trouvé pour cette référence et ce numéro.'], 404);
+                json_out(['ok' => false, 'error' => 'Aucun achat ne correspond à cette référence et à ce numéro. Vérifiez les deux.'], 404);
             }
         }
 
@@ -118,12 +118,12 @@ try {
     if ($action === 'tickets') {
         // Tous les clients d'un portail sortent par la même adresse publique : limite large
         if (!rate_limit('tickets:' . $ip, 600, 600)) {
-            json_out(['ok' => false, 'error' => 'Trop de demandes. Réessayez dans quelques minutes.'], 429);
+            json_out(['ok' => false, 'error' => 'Trop de demandes. Patientez quelques minutes.'], 429);
         }
         $mac = normalize_mac((string)($in['mac'] ?? ''));
         $portal = (string)($in['portal'] ?? 'gi');
-        if ($mac === null) { json_out(['ok' => false, 'error' => 'Adresse d\'appareil invalide.'], 400); }
-        if (!in_array($portal, ['gi', 'academie'], true)) { json_out(['ok' => false, 'error' => 'Portail inconnu.'], 400); }
+        if ($mac === null) { json_out(['ok' => false, 'error' => 'Appareil non reconnu.'], 400); }
+        if (!in_array($portal, ['gi', 'academie'], true)) { json_out(['ok' => false, 'error' => 'Portail non reconnu.'], 400); }
         $ids = array_keys(portal_plans($portal));
         if (!$ids) { json_out(['ok' => true, 'tickets' => []]); }
         $in_ = implode(',', array_fill(0, count($ids), '?'));
@@ -141,8 +141,8 @@ try {
         ], $rows)]);
     }
 
-    json_out(['ok' => false, 'error' => 'Action inconnue.'], 400);
+    json_out(['ok' => false, 'error' => 'Demande non reconnue.'], 400);
 } catch (Throwable $e) {
     logline('api.php : ' . $e->getMessage());
-    json_out(['ok' => false, 'error' => 'Erreur du serveur. Réessayez dans un instant.'], 500);
+    json_out(['ok' => false, 'error' => 'Un problème est survenu de notre côté. Réessayez dans un instant.'], 500);
 }
