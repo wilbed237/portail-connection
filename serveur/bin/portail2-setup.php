@@ -5,8 +5,8 @@
  *   2. serveur hotspot « hotspot2 », pages dans le dossier hotspot2/ ;
  *   3. tickets SÉPARÉS : utilisateurs hotspot locaux limités à hotspot2, sans RADIUS
  *      (un ticket GI ne marche pas sur ce portail, et inversement) ;
- *   4. 2 appareils par ticket et 10 Mb/s PAR TICKET, partagés entre ses appareils :
- *      une file « hs2-<ticket> » regroupe les adresses de toutes ses sessions ;
+ *   4. 1 appareil par ticket et 10 Mb/s PAR TICKET :
+ *      une file « hs2-<ticket> » porte l'adresse de sa session ;
  *   5. pare-feu : DNS/DHCP acceptés sur ether4, NAT vers Internet, pas d'accès aux autres réseaux locaux.
  *
  *   php bin/portail2-setup.php [--nom-dns=invite.wifi] [--reseau=10.20.0.0/22] [--debit=10] [--sortie=gandal-portail2.rsc]
@@ -42,7 +42,7 @@ function rs(string $s): string { return '"' . str_replace(['\\', '"', '$', "\n"]
 /*
  * Script de débit par ticket, lancé à chaque connexion et toutes les 30 s :
  * pour chaque ticket connecté sur hotspot2, une file simple « hs2-<ticket> » dont la cible
- * est la liste des adresses de ses sessions (1 ou 2 appareils) : les 10 Mb/s sont partagés.
+ * est l'adresse de sa session (1 appareil par ticket).
  * Les files des tickets déconnectés sont supprimées.
  */
 $sync = <<<ROS
@@ -83,7 +83,7 @@ ROS;
 $others = ['172.128.0.0/20', '192.168.1.0/24', '192.168.50.0/24', '192.168.89.0/24', '192.168.216.0/24', '10.66.66.0/24', '10.240.194.0/24'];
 
 $r = "# GANDAL : 2e portail captif sur ether4 (genere le " . date('Y-m-d H:i') . ")\n";
-$r .= "# Reseau $network, passerelle $gw, adresse du portail http://$dns, {$rate} Mb/s par ticket, 2 appareils par ticket.\n";
+$r .= "# Reseau $network, passerelle $gw, adresse du portail http://$dns, {$rate} Mb/s par ticket, 1 appareil par ticket.\n";
 $r .= "# AVANT l'import : creer le dossier hotspot2 dans Files (copie du dossier hotspot pour commencer).\n";
 $r .= "# Importer : /import file-name=$out verbose=yes\n\n";
 
@@ -96,10 +96,10 @@ $r .= ":if ([:len [/ip dhcp-server network find where address=\"$network\"]] = 0
 $r .= "# DNS = routeur seul : sinon l'adresse http://$dns ne se resout pas sur les telephones\n";
 $r .= "/ip dns set allow-remote-requests=yes\n\n";
 
-$r .= "# ---- 2. Profil d'utilisateur : 2 appareils par ticket, debit gere par les files hs2-<ticket>\n";
+$r .= "# ---- 2. Profil d'utilisateur : 1 appareil par ticket, debit gere par les files hs2-<ticket>\n";
 $r .= ":if ([:len [/system script find where name=\"gandal-portail2-debit\"]] = 0) do={ /system script add name=\"gandal-portail2-debit\" policy=read,write source=\"\" }\n";
 $r .= "/system script set [find where name=\"gandal-portail2-debit\"] policy=read,write source=" . rs($sync) . "\n";
-$prof = "shared-users=2 add-mac-cookie=yes mac-cookie-timeout=1d keepalive-timeout=2m idle-timeout=none status-autorefresh=1m"
+$prof = "shared-users=1 add-mac-cookie=yes mac-cookie-timeout=1d keepalive-timeout=2m idle-timeout=none status-autorefresh=1m"
       . " on-login=\"/system script run gandal-portail2-debit\" on-logout=\"/system script run gandal-portail2-debit\"";
 foreach (['portail2', 'portail2-5m'] as $pn) {   // portail2 : forfaits à {$rate} Mb/s ; portail2-5m : forfaits à 5 Mb/s (le débit est lu par le script)
     $r .= ":if ([:len [/ip hotspot user profile find where name=\"$pn\"]] = 0) do={ /ip hotspot user profile add name=\"$pn\" $prof } else={ /ip hotspot user profile set [find where name=\"$pn\"] $prof }\n";

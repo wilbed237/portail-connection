@@ -80,7 +80,7 @@ function plans(): array {
         'illim-7j'  => ['label' => 'Illimité / 1 semaine (25 Go)', 'type' => 'illim', 'price' => 1500, 'validity' => '7d',  'data_gb' => 25, 'rate' => 5, 'rate_after' => 2],
         'illim-14j' => ['label' => 'Illimité / 2 semaines (30 Go)','type' => 'illim', 'price' => 2500, 'validity' => '14d', 'data_gb' => 30, 'rate' => 5, 'rate_after' => 2],
         'illim-30j' => ['label' => 'Illimité / 1 mois (40 Go)',    'type' => 'illim', 'price' => 5000, 'validity' => '30d', 'data_gb' => 40, 'rate' => 5, 'rate_after' => 2],
-        // Portail de l'Académie Cisco (ether4, serveur hotspot2) : tickets séparés, 2 appareils, débit par ticket (voir portail2.php)
+        // Portail de l'Académie Cisco (ether4, serveur hotspot2) : tickets séparés, 1 appareil, débit par ticket (voir portail2.php)
         'acad-5go-1j'    => ['label' => 'Académie · 5 Go / 1 jour',        'type' => 'data',  'price' => 500,  'validity' => '1d',  'data_gb' => 5,  'rate' => 5,  'midnight' => true, 'portal' => 'academie'],
         'acad-20go-7j'   => ['label' => 'Académie · 20 Go / 1 semaine',    'type' => 'data',  'price' => 2000, 'validity' => '7d',  'data_gb' => 20, 'rate' => 10, 'portal' => 'academie'],
         'acad-illim-30j' => ['label' => 'Académie · Illimité / 1 mois',    'type' => 'illim', 'price' => 3500, 'validity' => '30d', 'data_gb' => 0,  'rate' => 10, 'portal' => 'academie'],

@@ -507,7 +507,7 @@
 
       <div class="perks">
         <div><b>Jusqu'à 10 Mb/s</b>par ticket</div>
-        <div><b>2 appareils</b>par ticket</div>
+        <div><b>1 appareil</b>par ticket</div>
       </div>
       <div class="soon" id="plansSoon">
         <h3>Forfaits bientôt disponibles</h3>
@@ -520,7 +520,7 @@
       <ol class="steps">
         <li><b>1</b><span>Choisissez votre forfait.</span></li>
         <li><b>2</b><span>Payez par <strong>MTN MoMo</strong> ou <strong>Orange Money</strong> et validez sur votre téléphone.</span></li>
-        <li><b>3</b><span>Votre identifiant et votre mot de passe s'affichent aussitôt. Utilisez-les sur 2 appareils au plus (téléphone et ordinateur).</span></li>
+        <li><b>3</b><span>Votre identifiant et votre mot de passe s'affichent aussitôt. Utilisez-les sur un seul appareil à la fois.</span></li>
       </ol>
 
       <div class="buy-bar" id="buyBar">
@@ -653,11 +653,11 @@
         </details>
         <details>
           <summary>Sur combien d'appareils puis-je utiliser un ticket ?</summary>
-          <p>Un ticket s'utilise sur <b>2 appareils en même temps</b> au plus, par exemple votre téléphone et votre ordinateur. Pour un 3e appareil, déconnectez d'abord l'un des deux.</p>
+          <p>Un ticket s'utilise sur <b>un seul appareil à la fois</b>. Pour passer à un autre appareil (du téléphone à l'ordinateur, par exemple), déconnectez d'abord le premier avec le bouton « Se déconnecter » de la page d'état du Wi-Fi.</p>
         </details>
         <details>
           <summary>Quel débit vais-je avoir ?</summary>
-          <p>Les forfaits <b>1 semaine</b> et <b>1 mois</b> ont <b>10 Mb/s</b> par ticket, le forfait <b>1 jour</b> 5 Mb/s, partagés entre les appareils du ticket : seul, un appareil profite de tout le débit ; à deux, ils se le partagent. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
+          <p>Les forfaits <b>1 semaine</b> et <b>1 mois</b> ont <b>10 Mb/s</b> par ticket, le forfait <b>1 jour</b> 5 Mb/s. Le débit réel peut baisser quand beaucoup d'utilisateurs sont connectés.</p>
         </details>
         <details>
           <summary>Quand mon forfait commence-t-il ?</summary>
@@ -672,7 +672,7 @@
           <ul>
             <li>Désactivez les mises à jour automatiques et la sauvegarde des photos dans le cloud.</li>
             <li>Réduisez la qualité des vidéos (YouTube, TikTok, Facebook).</li>
-            <li>Pour les gros téléchargements (Packet Tracer, images de machines virtuelles), connectez un seul appareil : il profite alors des 10 Mb/s.</li>
+            <li>Pour les gros téléchargements (Packet Tracer, images de machines virtuelles), préférez les forfaits à 10 Mb/s.</li>
           </ul>
         </details>
         <details id="conditions">
@@ -828,7 +828,7 @@
   // speed : débit maximal en Mb/s (doit correspondre à « rate » dans serveur/src/config.php) ;
   // les illimités à volume passent ensuite à « rate_after » (2 Mb/s), indiqué dans desc.
   // Forfaits du portail de l'Académie. L'id doit exister dans serveur/src/config.php (portal 'academie'),
-  // et c'est le prix de config.php qui est réellement facturé. speed = débit du ticket, partagé entre ses 2 appareils.
+  // et c'est le prix de config.php qui est réellement facturé. speed = débit du ticket (1 appareil par ticket).
   var PLANS = [
     { id:'acad-5go-1j',    group:'1', name:'5 Go',     period:'1 jour',    price:500,  speed:5,  desc:'Jusqu\'à 23h59' },
     { id:'acad-20go-7j',   group:'1', name:'20 Go',    period:'1 semaine', price:2000, speed:10, desc:'7 jours dès la 1re connexion' },
@@ -837,7 +837,7 @@
   /* ============================================================== */
 
   var GROUPS = [
-    { key:'1', title:'2 appareils par ticket', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="13" height="10" rx="1.5"/><path d="M6 18h5"/><rect x="16" y="8" width="6" height="12" rx="1.2"/></svg>' }
+    { key:'1', title:'1 appareil par ticket', icon:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>' }
   ];
   var BOLT = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>';
   function speedChip(p){ return p.speed ? '<span class="speed' + (p.speed >= 5 ? ' fast' : '') + '">' + BOLT + p.speed + ' Mb/s</span>' : ''; }
@@ -860,7 +860,7 @@
   // ---- Message d'erreur du routeur (en anglais) traduit en phrase simple ----
   function routerError(t){
     var s = t.toLowerCase();
-    if (/no more sessions|shared|too many/.test(s)) return 'Ce ticket est déjà utilisé sur le nombre maximal d\'appareils. Déconnectez un autre appareil, puis réessayez.';
+    if (/no more sessions|shared|too many/.test(s)) return 'Ce ticket est déjà utilisé sur un autre appareil. Déconnectez-le d\'abord, puis réessayez.';
     if (/uptime limit|session timeout|expired|validity/.test(s)) return 'Ce ticket est arrivé à la fin de sa durée. Achetez un nouveau forfait pour continuer.';
     if (/traffic limit|bytes|quota|transfer limit/.test(s)) return 'Ce ticket a utilisé tout son volume. Achetez un nouveau forfait pour continuer.';
     if (/disabled|no active profile|no profile|not active/.test(s)) return 'Ce ticket n\'est plus actif. Achetez un nouveau forfait, ou écrivez-nous sur WhatsApp si vous pensez que c\'est une erreur.';
@@ -906,7 +906,7 @@
       var items = PLANS.filter(function(p){ return p.group === g.key; });
       if (!items.length) return;
       html += '<div class="group"><div class="group-head' + (g.special ? ' special' : '') + '"><span class="gh-icon">' + g.icon + '</span>' + g.title + '</div>' +
-        '<div class="speed-legend"><span>Débit maximal du ticket, partagé entre vos 2 appareils.</span></div><div class="tickets">';
+        '<div class="speed-legend"><span>Débit maximal du ticket.</span></div><div class="tickets">';
       items.forEach(function(p){
         html += '<div class="ticket' + (g.special ? ' special' : '') + '" data-id="' + p.id + '" role="option" tabindex="0" aria-selected="false">' +
           '<span class="ticket-radio"></span>' +

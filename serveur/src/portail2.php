@@ -5,8 +5,8 @@
  * hotspot2, ce qui les sépare de ceux du portail GI (un ticket ne marche que sur son portail).
  *
  *   - volume : limit-bytes-total posé sur l'utilisateur, appliqué par le routeur ;
- *   - 2 appareils : profil d'utilisateur (shared-users=2) ;
- *   - débit PAR TICKET, partagé entre ses appareils : le profil donne le débit (portail2 = 10 Mb/s,
+ *   - 1 appareil : profil d'utilisateur (shared-users=1) ;
+ *   - débit PAR TICKET : le profil donne le débit (portail2 = 10 Mb/s,
  *     portail2-5m = 5 Mb/s) et le script gandal-portail2-debit du routeur crée une file par ticket ;
  *   - durée : comptée depuis la première connexion et coupée par le serveur (expiry.php) :
  *     fin de journée à 23:59:59 pour les forfaits « midnight », sinon première connexion + validity.
